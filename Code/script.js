@@ -5,9 +5,69 @@ const CANVAS_WIDTH = canvas.width = 1200;
 const CANVAS_HEIGHT = canvas.height = 900;
 
 const carImage = new Image();
-carImage.src = 'Images/car.png'
+carImage.src = 'Images/car.png';
 
 let x = 0;
+
+// COLORS
+const BLACK = "#000000";
+const WHITE = "#FFFFFF";
+const RED = "#FF0000";
+const GREEN = "#00FF00";
+const BLUE = "#0000FF";
+const YELLOW = "#F7FF00";
+const AQUA = "#00FFF7";
+const PURPLE = "#CD00FF";
+const PINK = "#FF00D8";
+const GREY = "#D3D3D3";
+
+
+
+class Screen{
+
+    constructor(Id, name, buttonList, objectList, backgroundColor){
+        this.Id = Id;
+        this.name = name;
+        this.buttonList = buttonList;
+        this.objectList = objectList;
+        this.backgroundColor = backgroundColor;
+
+        this.activeScreen = false;
+
+    }
+
+
+
+    draw(){
+        // When drawing, first do background, then objects, then buttons
+        if (this.activeScreen){
+            // BACKGROUND
+            ctx.fillStyle = this.backgroundColor;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // OBJECTS
+            this.objectList.forEach((object) => {
+                // console.log("doing");
+                object.update();
+            });
+
+            // BUTTONS
+            this.buttonList.forEach((button) => {
+
+                button.update();
+
+            });
+
+        }
+
+
+    }
+
+
+}
+
+
+
 
 
 class Button{
@@ -27,15 +87,22 @@ class Button{
 
         this.activeBoxColor = boxColor;
         this.activeTextColor = textColor;
+
+        this.leftClickDown = false;
+        this.leftClickUp = false;
     }
 
+    update(){
+        this.draw();
+        this.hoverCheck(mouseHoverPos);
+    }
 
 
     draw() {
 
         ctx.fillStyle = this.activeBoxColor;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        // writeText("TESTING TEXT", 0, true, this.x + (this.width / 2), this.y + (this.height / 2), this.activeTextColor ,this.width * 0.95)
+        writeText(this.text, 0, true, this.x + (this.width / 2), this.y + (this.height / 2), this.activeTextColor ,this.width * 0.95);
 
     }
 
@@ -48,9 +115,9 @@ class Button{
         // HOVER
         if (this.state[1]){
             this.activeBoxColor = this.boxHoverColor;
-            this.activeTextColor = textHoverColor;
+            this.activeTextColor = this.textHoverColor;
         }
-        // 
+        // CLICKEED
         if (this.state[2]){
             
         }
@@ -64,7 +131,7 @@ class Button{
             {
                 this.state = [false, true, false];
                 this.updateStateColor();
-                console.log("HOVERING");
+                this.clickCheck();
             }
             // IF MOUSE NOT IN BOX POS
             else{
@@ -81,9 +148,42 @@ class Button{
 
     }
 
+    // ONLY USED IN hoverCheck METHOD IN Button CLASS. THIS CHECKS FOR CLICK WHILE HOVERED 
+    clickCheck(){
+        if (click){
+            // LOG THE ID
+            if (this.Id == 0){
+                clickFirstScreen();
+            }
+            if (this.Id == 1){
+                clickTutorialBtn();
+            }
+            console.log("CLICKED ON BUTTON");
+        }
+    }
+
 
 
 }
+
+
+function clickFirstScreen(){
+    console.log("xsflkdsf");
+    firstScreen.activeScreen = false;
+    secondScreen.activeScreen = true;
+
+    console.log("did the stuff");
+
+}
+
+function clickTutorialBtn(){
+    secondScreen.activeScreen = false;
+    playScreen.activeScreen = true;
+
+
+}
+
+
 
 function writeText(text, styleId, centered, x, y, color, maxWidth){
 
@@ -119,6 +219,9 @@ var globalMouseClickX = 0;
 var globalMouseClickY = 0;
 var globalMouseHoverX = 0;
 var globalMouseHoverY = 0;
+
+var click = false;
+// var clickDown = false;
 canvas.addEventListener("click", function(e){
     globalMouseClickX = e.x;
     globalMouseClickY = e.y;
@@ -127,6 +230,18 @@ canvas.addEventListener("mousemove", function(e){
     globalMouseHoverX = e.x;
     globalMouseHoverY = e.y;
 })
+
+document.body.onmousedown = function(){
+    // console.log("LEFT CLICKED DOWN");
+    click = true;
+
+}
+// document.body.onmouseup = function(){
+//     console.log("LEFT CLICKED UP");
+//     click = true;
+
+// }
+
 // ASSUMING THAT THE CANVAS IS CENTERED ON THE PAGE (ITS IN DIRECT CENTER)
 // WHEN IMPLEMENTING ON tipucs.co.uk, NEED TO CHANGE THIS FUNCTION, THERES 2 OPTIONS:
 // OPTION 1: LINK TO ANOTHER PAGE WHICH HAS THE SIMULATION IN THE DIRECT CENTER
@@ -153,9 +268,25 @@ function mouseHoverPosInCanvas()
 
 }
 
-let myBtn = new Button(0, 50, 50, 300, 100, (0, 0, 0), (0, 255, 200), "TESTING TEXT", (255, 0, 0), (255, 200, 0));
+// let myBtn = new Button(0, 50, 50, 300, 100, YELLOW, GREEN, "TESTING TEXT", BLACK, WHITE);
 
-listOfActiveButtons = [myBtn]
+let startGameBtn = new Button(0, 400, 500, 400, 150, YELLOW, GREEN, "Click To Start!", BLACK, WHITE);
+
+let tutorialGameBtn = new Button(1, 400, 300, 400, 150, YELLOW, GREEN, "Tutorial", BLACK, WHITE);
+
+let levelGameBtn = new Button(2, 400, 500, 400, 150, YELLOW, GREEN, "Play", BLACK, WHITE);
+
+// listOfActiveButtons = [myBtn]
+let firstScreen = new Screen(0, "firstScreen", [startGameBtn], [], AQUA);
+firstScreen.activeScreen = true;
+
+let secondScreen = new Screen(1, "secondScreen", [tutorialGameBtn, levelGameBtn], [], PINK);
+
+let playScreen = new Screen(2, "secondScreen", [], [], GREY);
+
+
+
+// secondScreen.activeScreen = true;
 
 function mainLoop(){
 
@@ -163,21 +294,21 @@ function mainLoop(){
     // console.log(mouseClickPos);
     mouseHoverPos = mouseHoverPosInCanvas();
     // console.log(mouseHoverPos);
-    // // console.log(canvasY);
     // console.log();
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    listOfActiveButtons.forEach((button) => {
-        console.log("doing");
-        button.draw();
-        button.hoverCheck(mouseHoverPos);
-    });
 
-
-    // ctx.fillRect(50, 50, 100, 100);
-
-    // ctx.drawImage(carImage, 0, 0, 100, 100);
     
+    firstScreen.draw();
+    secondScreen.draw();
+    playScreen.draw();
+    // listOfActiveButtons.forEach((button) => {
+    //     // console.log("doing");
+    //     button.draw();
+    //     button.hoverCheck(mouseHoverPos);
+    // });
+
+    click = false;
     requestAnimationFrame(mainLoop);
 
 }
