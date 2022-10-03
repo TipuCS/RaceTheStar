@@ -22,45 +22,223 @@ const PINK = "#FF00D8";
 const GREY = "#D3D3D3";
 
 
+class Game{
+
+    constructor(){
+
+        this.nodeList = [];
+        this.vertexList = [];
+    }
+
+    nextNodeToCheck(){
+        returnNode = null;
+        currentLowestF = null;
+        this.nodeList.forEach((node) => {
+            // If we still need to check this node
+            if (node.visited == false){
+                // If this node has an F value (meaning it's been connected by another node)
+                if (node.f != null){
+                    // If no node has been selected yet, select this one because its the lowest so far
+                    if (currentLowestF == null){
+                        currentLowestF = node.f;
+                        returnNode = node;
+                    }
+                    // Select the smallest f value node
+                    if (node.f < currentLowestF){
+                        currentLowestF = node.f;
+                        returnNode = node;
+                    }
+                }
+            }
+
+
+        });
+        return returnNode;
+    }
+
+
+
+    updateConnectedNodes(currentNode){
+
+        // Get a list of all nodes to be updated (connected ones) 
+        let toCheckNodeList = [];
+        currentNode.forEach((connectedPathIdAndCost) => {
+            let connectedNode = idToNode(connectedPathIdAndCost[0])
+            if (connectedNode.visited == false){
+                toCheckNodeList.push((connectedNode), connectedPathIdAndCost[1]);
+            }
+        });
+
+        currentNodeG = node.g;
+
+
+        // Go through each node, if the f value is undefined or lower than previous f value, update node accordingly
+        toCheckNodeList.forEach((nodeAndCost) => {
+
+            let node = nodeAndCost[0];
+            let travelToNodeCost = nodeAndCost[1];
+
+            // If f is undefineed, set it
+            if (node.f == null){
+                node.g = travelToNodeCost;
+                node.f = node.g + node.heuristic;
+                node.previousNode = currentNode;
+            }
+
+            // if this value of f is lower than previous, then set it
+            if ((currentNodeG + travelToNodeCost + node.heuristic) < node.f){
+                node.g = travelToNodeCost + currentNodeG;
+                node.f = node.g + node.heuristic;
+                node.previousNode = currentNode;
+            }
+
+        });
+
+        // Set this node to visited!
+        currentNode.visited = true;
+
+    }
+
+
+    
+    updateAdjacencyList(){
+
+    }
+
+    idToNode(id){
+        let returnNode = null;
+        if (this.nodeList){
+            this.nodeList.forEach((node) => {
+                console.log("checking");
+                if (node.id == id){
+                    console.log("id found");
+                    returnNode = node;
+                    
+                }
+            });
+            // NO ID FOUND
+        }
+        return returnNode;
+        
+    }
+
+
+}
+
+class Node{
+
+    constructor(id, x, y, isItStart, isItEnd){
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.color = YELLOW;
+
+        this.isItStart = isItStart;
+        this.isItEnd = isItEnd; 
+        this.visited = false;
+
+        // g is the cost from the start 
+        this.g = null;
+        // heuristic is the approximate added cost depending on distance from end
+        this.heuristic = null;
+        // f = g + h
+        this.f = null;
+        this.previousNode = null;
+
+        // E.G. [(2, 5), (3, 10), (7, 3)]
+        // [nodeID, CostToTravel]
+        // Travel to node 2 for cost: 5
+        this.connectedPathIdAndCost = [];
+
+
+        this.width = 50;
+        this.height = 50;
+    }
+
+    draw(){
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - (this.width / 2), this.y - (this.height / 2), this.width, this.height);
+    }
+
+
+}
+
+
+class Box{
+    constructor(x, y, width, height, color){
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.color = color;
+    }
+    draw(){
+        drawBox(this.x, this.y, this.width, this.height, this.color);
+    }
+}
+
+
+
 
 class Screen{
 
-    constructor(Id, name, buttonList, objectList, backgroundColor){
+    constructor(Id, name, buttonList){
         this.Id = Id;
         this.name = name;
         this.buttonList = buttonList;
-        this.objectList = objectList;
-        this.backgroundColor = backgroundColor;
+
+        // DRAWING ORDER:
+        // 1. BACKGROUND OBJECTS
+        // 2. FOREGROUND OBJECTS
+        // 3. UI OBJECTS
+        this.drawBackgroundObjectList = [];
+        this.drawForegroundObjectList = [];
+        this.drawUIObjectList = [];
 
         this.activeScreen = false;
 
     }
 
+    addBackgroundObject(obj){
+        this.drawBackgroundObjectList.push(obj);
+    }
+    addForegroundObject(obj){
+        this.drawForegroundObjectList.push(obj);
+    }
+    addUIObject(obj){
+        this.drawUIObjectList.push(obj);
+    }
 
+    addButton(btn){
+        this.buttonList.push(btn);
+    }
 
     draw(){
         // When drawing, first do background, then objects, then buttons
         if (this.activeScreen){
-            // BACKGROUND
-            ctx.fillStyle = this.backgroundColor;
-            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-            // OBJECTS
-            this.objectList.forEach((object) => {
-                // console.log("doing");
-                object.update();
+            // BACKGROUND OBJEECTS
+            this.drawBackgroundObjectList.forEach((object) => {
+                object.draw();
             });
 
-            // BUTTONS
-            this.buttonList.forEach((button) => {
+            // FOREGROUND OBJECTS
+            this.drawForegroundObjectList.forEach((object) => {
+                object.draw();
+            });
 
-                button.update();
-
+            // UI OBJECTS
+            this.drawUIObjectList.forEach((object) => {
+                object.draw();
             });
 
         }
 
 
+    }
+    loadButtons(){
+        this.buttonList.forEach((button) => {
+            button.update();
+        });
     }
 
 
@@ -93,15 +271,13 @@ class Button{
     }
 
     update(){
-        this.draw();
         this.hoverCheck(mouseHoverPos);
     }
 
 
     draw() {
 
-        ctx.fillStyle = this.activeBoxColor;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        drawBox(this.x, this.y, this.width, this.height, this.activeBoxColor);
         writeText(this.text, 0, true, this.x + (this.width / 2), this.y + (this.height / 2), this.activeTextColor ,this.width * 0.95);
 
     }
@@ -159,6 +335,11 @@ class Button{
                 clickTutorialBtn();
             }
             console.log("CLICKED ON BUTTON");
+
+            this (this.Id == 10){
+                clickStepBtn();
+
+            }
         }
     }
 
@@ -166,6 +347,10 @@ class Button{
 
 }
 
+function drawBox(x, y, width, height, color){
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width, height);
+}
 
 function clickFirstScreen(){
     console.log("xsflkdsf");
@@ -179,6 +364,10 @@ function clickFirstScreen(){
 function clickTutorialBtn(){
     secondScreen.activeScreen = false;
     playScreen.activeScreen = true;
+
+}
+
+function clickStepBtn(){
 
 
 }
@@ -205,11 +394,6 @@ function writeText(text, styleId, centered, x, y, color, maxWidth){
 
 }
 
-// function drawRect(ctx, ){
-//     ctx.drawImage()
-// }
-
-// console.log(ctx)
 
 
 
@@ -236,11 +420,6 @@ document.body.onmousedown = function(){
     click = true;
 
 }
-// document.body.onmouseup = function(){
-//     console.log("LEFT CLICKED UP");
-//     click = true;
-
-// }
 
 // ASSUMING THAT THE CANVAS IS CENTERED ON THE PAGE (ITS IN DIRECT CENTER)
 // WHEN IMPLEMENTING ON tipucs.co.uk, NEED TO CHANGE THIS FUNCTION, THERES 2 OPTIONS:
@@ -276,17 +455,44 @@ let tutorialGameBtn = new Button(1, 400, 300, 400, 150, YELLOW, GREEN, "Tutorial
 
 let levelGameBtn = new Button(2, 400, 500, 400, 150, YELLOW, GREEN, "Play", BLACK, WHITE);
 
+let doConnectedNodeBtn = new Button(10, 50, 50, 200, 150, RED, GREEN, "Next Step", BLACK, WHITE);
+
 // listOfActiveButtons = [myBtn]
-let firstScreen = new Screen(0, "firstScreen", [startGameBtn], [], AQUA);
+
+// FIRST SCREEN
+let firstScreen = new Screen(0, "firstScreen", [startGameBtn]);
 firstScreen.activeScreen = true;
 
-let secondScreen = new Screen(1, "secondScreen", [tutorialGameBtn, levelGameBtn], [], PINK);
+let firstScreenBG = new Box(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, AQUA);
+firstScreen.addBackgroundObject(firstScreenBG);
+firstScreen.addUIObject(startGameBtn);
 
-let playScreen = new Screen(2, "secondScreen", [], [], GREY);
+// SECOND SCREEN
+let secondScreen = new Screen(1, "secondScreen", [tutorialGameBtn, levelGameBtn]);
+
+let secondScreenBG = new Box(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, PURPLE);
+secondScreen.addBackgroundObject(secondScreenBG);
+secondScreen.addUIObject(tutorialGameBtn);
+secondScreen.addUIObject(levelGameBtn);
+
+// PLAY SCREEN
+let playScreen = new Screen(2, "secondScreen", [doConnectedNodeBtn]);
+
+playScreen.addUIObject(doConnectedNodeBtn);
 
 
+screenList = [firstScreen, secondScreen, playScreen]
 
-// secondScreen.activeScreen = true;
+
+testGame = new Game();
+
+testNode = new Node(3, 100, 100, false, false);
+
+testNode2 = new Node(4, 100, 100, false, false);
+
+testGame.nodeList.push(testNode);
+testGame.nodeList.push(testNode2);
+
 
 function mainLoop(){
 
@@ -299,9 +505,12 @@ function mainLoop(){
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     
-    firstScreen.draw();
-    secondScreen.draw();
-    playScreen.draw();
+    screenList.forEach((screen) => {
+        if (screen.activeScreen){
+            screen.draw();
+            screen.loadButtons();
+        }
+    });
     // listOfActiveButtons.forEach((button) => {
     //     // console.log("doing");
     //     button.draw();
