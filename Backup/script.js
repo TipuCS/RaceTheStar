@@ -13,8 +13,8 @@
 const canvas = document.getElementById('canvas1');
 const ctx = canvas.getContext('2d');
 
-const CANVAS_WIDTH = canvas.width = 750;
-const CANVAS_HEIGHT = canvas.height = 750;
+const CANVAS_WIDTH = canvas.width = 1000;
+const CANVAS_HEIGHT = canvas.height = 1000;
 
 const carImage = new Image();
 carImage.src = 'Images/car.png';
@@ -133,11 +133,11 @@ class Game{
                 }
             });
     
-            console.log("returning node:" + returnNode.id);
+            // console.log("returning node:" + returnNode.id);
             return returnNode;
             
         }
-        console.log("incompleted searching for next node");
+        
     }
 
 
@@ -187,12 +187,7 @@ class Game{
         // console.log("updating connected nodes");
         toCheckNodeList.forEach((nodeAndCost) => {
             let node = nodeAndCost[0];
-            // console.log("-=-=- checking node:" + node.id);
-            if (node.visited){
-                // console.log("node already visited, skipped.")
-            }
-            else{
-                let travelToNodeCost = nodeAndCost[1];
+            let travelToNodeCost = nodeAndCost[1];
 
             // console.log("node to be updated:", node);
             // console.log("the cost to travel to this node:", travelToNodeCost);
@@ -200,7 +195,6 @@ class Game{
             // If connected node's g is undefined, set it
 
             if (node.g == -1){
-                // console.log("this node is new, setting g, f, previousNode")
                 node.g = currentNode.g + travelToNodeCost;
             }
 
@@ -216,23 +210,14 @@ class Game{
             // If the connected node's f value is higher than new g value, replace higher value with smaller
 
             if ((currentNodeG + travelToNodeCost + node.heuristic) < node.f){
-                console.log("this node's previous f value is higher than current, so update it.");
-                console.log("-=-= previous:");
-                console.log("node.g = ",node.g);
-                console.log("node.f = ",node.f);
+                console.log("new f value is lower than previous f value");
                 node.g = travelToNodeCost + currentNodeG;
                 node.f = node.g + node.heuristic;
-                node.previousNode = currentNode.id;
-                console.log("-=-= after:");
-                console.log("node.g = ",node.g);
-                console.log("node.f = ",node.f);
+                node.previousNode = currentNode;
             }
-            }
-            
 
         });
         // Set this node to visited!
-        // console.log("set visited to true!");
         currentNode.visited = true;
 
     }
@@ -250,6 +235,11 @@ class Game{
         let distance = Math.sqrt((distanceX ** 2) + (distanceY ** 2));
 
         return distance;
+
+    }
+    
+
+    updateAdjacencyList(){
 
     }
 
@@ -316,6 +306,7 @@ class Game{
         });
 
     }
+
 
 }
 
@@ -418,10 +409,10 @@ class Node{
         let x = this.x * lengthOfABox
         let y = this.y * heightOfABox
 
-        writeText(this.id, 20, 0, false, x, y + 3, BLACK, 100);
-        writeText("g: " + Math.round(this.g), 20, 0, false, x, y + 30, BLACK, 100);
-        writeText("h: " + Math.round(this.heuristic), 20, 0, false, x, y + 60, BLACK, 100);
-        writeText("f: " + Math.round(this.f), 20, 0, false, x, y + 90, BLACK, 100);
+        writeText(this.id + " (" + x + ", " + y + ")", 30, 0, false, x, y, BLACK, 100);
+        writeText("g: " + Math.round(this.g), 30, 0, false, x, y + 40, BLACK, 100);
+        writeText("h: " + Math.round(this.heuristic), 30, 0, false, x, y + 80, BLACK, 100);
+        writeText("f: " + Math.round(this.f), 30, 0, false, x, y + 120, BLACK, 100);
     }
 
 }
@@ -457,7 +448,7 @@ class InfoBox{
         this.write();
     }
     write(){
-        writeText(this.text, this.textSize, this.styleId, false, this.x + (this.width / 2), this.y + (this.height / 2) + (this.textSize / 2), BLACK, this.width);
+        writeText(this.text, this.textSize, this.styleId, false, this.x + (this.width / 2), this.y + (this.height / 2), BLACK, this.width);
     }
 
 
@@ -471,78 +462,70 @@ class Editing{
         this.editingEnabled = false;
         this.hoveringNode = -1;
         this.holdingNode = -1;
-        this.distanceToCheckNode = 25;
+        this.distanceToCheckNode = 100;
         this.mousePosX = 0;
         this.mousePosY = 0;
 
 
         this.sameIteration = false;
 
-        // index 0 = move
-        // index 1 = add Lines
-        // index 2 = delete nodes
-        // index 3 = add nodes
+        this.enableMove = false;
 
-        this.enableState = [false, false, false, false];
-    }
+        this.enableAddLine = false;
 
-    enableNewState(index){
-        this.sameIteration = true;
-        for (let i=0;i < this.enableState.length;i++){
-            this.enableState[i] = false;
-        }
-        this.enableState[index] = true;
-    }
-    disableState(index){
-        this.enableState[index] = false;
+        this.enableDeleteNode = false;
+
+        this.enableAddNode = false;
+
+
     }
 
     update(){
 
-        if (this.editingEnabled && !this.sameIteration){
+        if (this.editingEnabled){
 
-            if (this.enableState[0]){
+            if (this.enableMove){
                 this.leftClickMove();
             }
-            if (this.enableState[1]){
+            if (this.enableAddLine){
                 this.leftClickAddLine();
             }
-            if (this.enableState[2]){
+            if (this.enableDeleteNode){
                 this.deleteNode();
             }
-            if (this.enableState[3]){
+            if (this.enableAddNode){
                 this.addNode();
             }
 
         }
-        this.sameIteration = false;
         
     }
 
+
+    
+
+    resetEditing(){
+
+        this.enableMove = false;
+        this.enableAddLine = false;
+        this.enableDeleteNode = false;
+        this.enableAddNode = false;
+
+        this.hoveringNode = -1;
+        this.holdingNode = -1;
+
+    }
+
     addNode(){
-        console.log("started adding node");
 
         let newHoveringNode = this.closestNodeWithinRange();
         this.mousePosToCordGrid();
 
+        tempNode = new Node(-1, this.mousePosX, this.mousePosY, false, false);
+        
 
-        console.log(this.mousePosX, this.mousePosY);
 
-        let nextSmallest = getNextSmallestIdNode();
 
-        let tempNode = new Node(nextSmallest, pixelToCord(this.mousePosX), pixelToCord(this.mousePosY), false, false);
-        tempNode.draw();
-        // createdMap.push(tempNode);
-        // testGame.updateNodeList();
-
-        // let removeTempNode = true;
-
-        if (click){
-            createdMap.push(tempNode);
-            testGame.updateNodeList();
-            
-        }
-        console.log("ended adding node");
     }
 
     deleteNode(){
@@ -669,6 +652,9 @@ class Editing{
 
                     let hoverNodeHasHoldNode = this.hoveringNode.connectedPathId.includes(this.holdingNode.id);
 
+                    let test = [3,4,5];
+                    test.splice(1, 1);
+                    console.log(test);
 
 
                     // THERE IS ALREADY A LINE 
@@ -776,7 +762,6 @@ class Editing{
         let cordY = pixelToCord(this.mousePosY);
 
         // console.log(cordX, cordY);
-        return [cordX, cordY];
 
 
     }
@@ -985,8 +970,7 @@ class Button{
     draw() {
 
         drawBox(this.x, this.y, this.width, this.height, this.activeBoxColor);
-        let textSize = 30;
-        writeText(this.text, textSize, 0, true, this.x + (this.width / 2), this.y + (this.height / 2) + (textSize / 2), this.activeTextColor ,this.width * 0.95);
+        writeText(this.text, 30, 0, true, this.x + (this.width / 2), this.y + (this.height / 2), this.activeTextColor ,this.width * 0.95);
 
     }
 
@@ -1028,7 +1012,6 @@ class Button{
             this.state = [true, false, false]
             this.updateStateColor();
         }
-        // console.log("done hover check");
         
 
     }
@@ -1045,7 +1028,6 @@ class Button{
             }
             if (this.Id == 3){
                 clickStepBtn();
-                // console.log("done clicking step button");
             }
             if (this.Id == 4){
                 clickMapLogBtn();
@@ -1062,16 +1044,6 @@ class Button{
             if (this.Id == 8){
                 editNodeConnectionBtnFunc();
             }
-            if (this.Id == 9){
-                removeNodeBtnFunc();
-            }
-            if (this.Id == 10){
-                addNodeBtnFunc();
-            }
-            if (this.Id == 11){
-                randomNodeBtnFunc();
-            }
-            // console.log("done checking all button");
         }
     }
 
@@ -1080,14 +1052,6 @@ class Button{
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                              FUNCTIONS
 // ---------------------------------------------------------------------------------------------------------------------------------
-
-function percentageToPixel(percentage){
-
-    return percentage * (CANVAS_WIDTH/100);
-}
-function pToP(percentage){
-    return percentageToPixel(percentage);
-}
 
 function drawBox(x, y, width, height, color){
     ctx.fillStyle = color;
@@ -1099,7 +1063,7 @@ function drawBox(x, y, width, height, color){
 
 function pixelToCord(pixel){
 
-    return Math.round(pixel/(CANVAS_HEIGHT/50));
+    return Math.round(pixel/20);
 
 }
 
@@ -1192,11 +1156,7 @@ function writeText(text, textSize, styleId, centered, x, y, color, maxWidth){
 }
 
 function gridCordToPixelCord(gridCord){
-
-    // 50 = 750
-    // 1 = 750/50
-
-    return gridCord * (CANVAS_HEIGHT/50);
+    return gridCord * 20;
 }
 
 function distanceBetweenPoints(point1, point2){
@@ -1231,34 +1191,10 @@ function colorFinalPath(){
 
         node = idToNode(id);
         node.partOfFinalLine = true;
+
     });
-}
-
-function getRandomInt(min, max) {
-    let difference = max - min + 1
-    return min + Math.floor(Math.random() * difference);
-  }
 
 
-function getNextSmallestIdNode(){
-    let idList = [];
-
-    createdMap.forEach((node) => {
-        idList.push(node.id);
-    });
-    let nextSmallestNumFound = false;
-    let i = 0;
-    let nextSmallest = null;
-    while (nextSmallestNumFound == false){
-        // is "i" in the idList?
-        let index = idList.indexOf(i);
-        if (index == -1){
-            nextSmallest = i;
-            nextSmallestNumFound = true;
-        }
-        i += 1;
-    }
-    return nextSmallest;
 
 }
 
@@ -1280,84 +1216,28 @@ function clickTutorialBtn(){
 
 function clickStepBtn(){
 
-    // console.log(testGame);
+    console.log(testGame);
     
     testGame.updateAllHeuristic();
 
     nextNode = testGame.nextNodeToCheck();
-    // console.log("THE NEXT NODE -=-=-=-=-=-=-=-= :",nextNode);
+    console.log("THE NEXT NODE -=-=-=-=-=-=-=-= :",nextNode);
 
-    if (isAlgorithmComplete() == false){
-        testGame.updateConnectedNodes(nextNode);
+    if (nextNode != false){
+        if (nextNode.id != idOfEndNode()){
+            testGame.updateConnectedNodes(nextNode);
+        }
         updateNextNodeBoxText();
     }
 }
 
-function isAlgorithmComplete(){
-    nextNode = testGame.nextNodeToCheck();
-    if (nextNode == null){
-        return false;
-    }
-    if ((nextNode == false) || (nextNode.id == idOfEndNode())){
-        return true;
-    }
-    return false;
-}
-
-
-function getFinalRoute(){
-    if (isAlgorithmComplete()){
-
-        let endNode = idToNode(idOfEndNode());
-        let startNode = idToNode(idOfStartNode());
-
-        let currentNode = endNode;
-
-        let currentRoute = [];
-
-
-        while (currentNode.id != startNode.id){
-
-            currentRoute.push(currentNode.id);
-            currentNode = idToNode(currentNode.previousNode);
-
-        }
-        currentRoute.push(currentNode.id);
-        console.log("final route:", currentRoute);
-        return currentRoute;
-
-    }
-}
-
-
 function updateNextNodeBoxText(){
-    
     nextNode = testGame.nextNodeToCheck();
-    // console.log(nextNode);
-    
-    if (isAlgorithmComplete()){
+    nextNodeBox.text = "Next Node:" + nextNode.id;
+    if (nextNode.id == idOfEndNode()){
         nextNodeBox.text = "Next Node: COMPLETE";
-        getFinalRoute();
-    }else{
-        if (nextNode == null){
-            nextNodeBox.text = "Next Node: COMPLETE";
-        }
-        else{
-            nextNodeBox.text = "Next Node:" + nextNode.id;
-        }
     }
 
-}
-
-function idOfStartNode(){
-    let id = -1;
-    createdMap.forEach((node) => {
-        if (node.isItStart){
-            id = node.id;
-        }
-
-    });
-    return id;
 }
 
 function idOfEndNode(){
@@ -1386,6 +1266,25 @@ function clickMapLogBtn(){
     console.log("-=-=-=- CLICKED MAP LOG BUTTON -=-=-=-");
 
     // GET LAST NODE
+
+    // let newMap = [];
+
+    // createdMap.forEach((node) =>{
+
+    //     if (node.isItStart){
+    //         console.log("got start node");
+    //         newMap.push([node.x, node.y, node.connectedPathId, 0]);
+    //     }
+    //     if (node.isItEnd){
+    //         console.log("got end node");
+    //         newMap.push([node.x, node.y, node.connectedPathId, 1]);
+    //     }
+    //     if (!node.isItStart && !node.isItEnd){
+    //         newMap.push([node.x, node.y, node.connectedPathId]);
+    //     }
+    // });
+    // console.log(newMap);
+
 
     console.log(createdMap);
     let currentStr = "[";
@@ -1422,6 +1321,7 @@ function clickMapLogBtn(){
 function clickResetMapBtn(){
     createdMap.forEach((node) => {
         node.g = -1;
+        node.h = 0;
         node.f = -1;
         node.previousNode = -1;
         node.visited = false;
@@ -1493,12 +1393,6 @@ function enableEditingBtnFunc(){
         // Add Log Map Button
         playScreen.addButton(logCurrentMapBtn);
 
-        playScreen.addButton(addNodeBtn);
-        
-        playScreen.addButton(removeNodeBtn);
-
-        playScreen.addButton(randomNodeBtn);
-
         // Enable Editing
         editObj.editingEnabled = true;
     }
@@ -1527,12 +1421,6 @@ function enableEditingBtnFunc(){
         // remove Log Map Button
         playScreen.removeButton(logCurrentMapBtn);
 
-        playScreen.removeButton(addNodeBtn);
-        
-        playScreen.removeButton(removeNodeBtn);
-
-        playScreen.removeButton(randomNodeBtn);
-
         editObj.editingEnabled = false;
     }
 
@@ -1540,534 +1428,32 @@ function enableEditingBtnFunc(){
 
 function moveNodeBtnFunc(){
     // if move is disabled, enable it
-    if (editObj.enableState[0] == false){
-        editObj.enableNewState(0);
+    if (editObj.enableMove == false){
         moveNodeBtn.boxColor = GREEN;
         editNodeConnectionBtn.boxColor = RED;
-        removeNodeBtn.boxColor = RED;
-        addNodeBtn.boxColor = RED;
-    }
+        editObj.enableMove = true;
+        editObj.enableAddLine = false;
+    } // if move is enabled, disable it
     else{
-        editObj.disableState(0);
         moveNodeBtn.boxColor = RED;
+        editObj.enableMove = false;
     }
 }
 
 function editNodeConnectionBtnFunc(){
-    // if move is disabled, enable it
-    if (editObj.enableState[1] == false){
-        editObj.enableNewState(1);
+    // if editNode is disabled then enable it
+    if (editObj.enableAddLine == false){
+        moveNodeBtn.boxColor = RED;
         editNodeConnectionBtn.boxColor = GREEN;
-        moveNodeBtn.boxColor = RED;
-        removeNodeBtn.boxColor = RED;
-        addNodeBtn.boxColor = RED;
-    }
+        editObj.enableMove = false;
+        editObj.enableAddLine = true;
+    } // if editNode is enabled, then disable it
     else{
-        editObj.disableState(1);
         editNodeConnectionBtn.boxColor = RED;
-    }
-}
-
-function removeNodeBtnFunc(){
-    // if add Node is disabled, enable it
-    if (editObj.enableState[2] == false){
-        editObj.enableNewState(2);
-        removeNodeBtn.boxColor = GREEN;
-        moveNodeBtn.boxColor = RED;
-        editNodeConnectionBtn.boxColor = RED;
-        addNodeBtn.boxColor = RED;
-    }
-    else{
-        editObj.disableState(2);
-        removeNodeBtn.boxColor = RED;
-    }
-}
-function addNodeBtnFunc(){
-    // if add Node is disabled, enable it
-    if (editObj.enableState[3] == false){
-        editObj.enableNewState(3);
-        addNodeBtn.boxColor = GREEN;
-        moveNodeBtn.boxColor = RED;
-        editNodeConnectionBtn.boxColor = RED;
-        removeNodeBtn.boxColor = RED;
-    }
-    else{
-        editObj.disableState(3);
-        addNodeBtn.boxColor = RED;
-    }
-}
-
-// IF "startOrEndOrDefault" == 0 then default node
-// IF "startOrEndOrDefault" == 1 then start node
-// IF "startOrEndOrDefault" == 2 then end node
-
-function placeRandomNode(minimumDistance, minGridX, maxGridX, minGridY, maxGridY, startOrEndOrDefault){
-
-    let nodeType = "";
-
-    if (startOrEndOrDefault == 0){
-        nodeType = "default";
-    }
-    if (startOrEndOrDefault == 1){
-        nodeType = "start";
-    }
-    if (startOrEndOrDefault == 2){
-        nodeType = "end";
-    }
-
-    let minimumDistanceFromNode = minimumDistance;
-
-    let isNewNodeReady = false;
-
-    let newNodeX;
-    let newNodeY;
-
-    // I will try placing node 100 times, if it doesn't place one time (because the minimumDistance is too high)
-    // THEN i will reduce the minimumDistance by 1 
-    // AKA Place node 100 times, if failed, just place it closer than minimum distance
-    let attemptNumber = 0;    
-
-    while (isNewNodeReady == false){
-        let xPos = getRandomInt(minGridX, maxGridX);
-        let yPos = getRandomInt(minGridY, maxGridY);
-
-        let nodeReady = true;
-        createdMap.forEach((node) => {
-            distanceBetweenNodeAndNewNode = distanceBetweenPoints([node.x, node.y], [xPos, yPos]);
-            if (distanceBetweenNodeAndNewNode < (minimumDistanceFromNode - (attemptNumber / 100))){
-                nodeReady = false;
-            }
-        });
-        if (nodeReady){
-            newNodeX = xPos;
-            newNodeY = yPos;
-            isNewNodeReady = true;
-        }
-        
-        else{
-            attemptNumber += 1;
-        }
-    }
-
-    let id = getNextSmallestIdNode();
-    
-    let randNode = null;
-    if (nodeType == "start"){
-        randNode = new Node(id, newNodeX, newNodeY, true, false);
-    }
-    if (nodeType == "end"){
-        randNode = new Node(id, newNodeX, newNodeY, false, true);
-
-    }
-    if (nodeType == "default"){
-        randNode = new Node(id, newNodeX, newNodeY, false, false);
+        editObj.enableMove = false;
+        editObj.enableAddLine = false;
     }
     
-
-    createdMap.push(randNode);
-    testGame.updateNodeList();
-
-}
-
-function connectNodeToRandomNode(node){
-    let listOfDefaultNode = [];
-    createdMap.forEach((node) => {
-        if (!node.isItStart && !node.isItEnd){
-            let numOfConnectionsOut = node.connectedPathId.length;
-            let numOfConnectsIn = 0;
-            createdMap.forEach((node2) => {
-
-                // if node
-                if (node2.connectedPathId.indexOf(node.id) != -1){
-                    numOfConnectsIn += 1;
-                }
-
-            });
-            if (numOfConnectsIn + numOfConnectionsOut < 4){
-                listOfDefaultNode.push(node);
-            }
-            
-            
-        }
-    });
-
-    let doneAdding = false;
-    while (doneAdding == false){
-        index = getRandomInt(0, listOfDefaultNode.length - 1);
-        randNode = listOfDefaultNode[index].id;
-        if (randNode.id != node.id){
-            node.connectedPathId.push(listOfDefaultNode[index].id);
-            listOfDefaultNode.splice(index, 1)
-            doneAdding = true;
-        }
-    } 
-    doneAdding = false;
-    while (doneAdding == false){
-        index = getRandomInt(0, listOfDefaultNode.length - 1);
-        randNode = listOfDefaultNode[index].id;
-        if (randNode.id != node.id){
-            node.connectedPathId.push(listOfDefaultNode[index].id);
-            doneAdding = true;
-        }
-    } 
-}
-
-
-
-function closestNodeNotInList(nodeId, listOfIdAndDistance){
-
-    let currentClosestNodeId = -1;
-    let currentClosestDistance = -1;
-    let originalNode = idToNode(nodeId);
-
-    createdMap.forEach((node) =>{
-        // console.log("doing node:", node.id);
-        let nodeIsOriginalNode = false;
-        if (originalNode.id == node.id){
-            nodeIsOriginalNode = true;
-            // console.log("found original node");
-        }
-
-        // console.log(listOfIdAndDistance.length);
-
-        let nodeAlreadyInList = false;
-        listOfIdAndDistance.forEach((idAndDistance) => {
-
-            if (idAndDistance[0] == node.id){
-                nodeAlreadyInList = true;
-                // console.log("node is in the list");
-            }
-
-        });
-        
-        if ((!nodeAlreadyInList) && (!nodeIsOriginalNode)){
-            let distanceBetweenOriginalNodeAndThisNode = distanceBetweenPoints([node.x, node.y], [originalNode.x, originalNode.y]);
-            // console.log("calculated distance: ", distanceBetweenOriginalNodeAndThisNode);
-
-            // if no node set within range, then set this one
-            if (currentClosestDistance == -1){
-                currentClosestDistance = distanceBetweenOriginalNodeAndThisNode
-                currentClosestNodeId = node.id;
-            }
-            else{
-                if (distanceBetweenOriginalNodeAndThisNode < currentClosestDistance){
-                    currentClosestDistance = distanceBetweenOriginalNodeAndThisNode
-                    currentClosestNodeId = node.id;
-                }
-            }
-        }
-
-    });
-    if (currentClosestNodeId == -1){
-        return [-1, -1];
-    }
-    // console.log([currentClosestNodeId, currentClosestDistance]);
-    return [currentClosestNodeId, currentClosestDistance];
-
-}
-
-// NEED A LIST OF:
-// finalList = [[nodeId, [[1, 23], [2, 25]], []], [nodeId, [], [], []], ]
-
-
-function getFinalListForClosestNode(){
-
-    // for each node
-    // run closestNodeNotInList to get the closest with distance
-    // until returns [-1, -1]
-    let currentFinalList = [];
-    createdMap.forEach((node) => {
-
-        let currentAddition = [];
-
-        currentAddition.push(node.id);
-        currentAddition.push([]);
-    
-        let currentClosestNodeIdAndDistance = closestNodeNotInList(node.id, []);
-        currentAddition[1].push(currentClosestNodeIdAndDistance);
-    
-        while(currentClosestNodeIdAndDistance[0] != -1){
-    
-            // currentAddition[1].push(currentClosestNodeIdAndDistance);
-    
-            currentClosestNodeIdAndDistance = closestNodeNotInList(node.id, currentAddition[1]);
-            if (currentClosestNodeIdAndDistance[0] != -1){
-                currentAddition[1].push(currentClosestNodeIdAndDistance);
-            }
-        
-    
-        }
-        currentFinalList.push(currentAddition);
-        
-    });
-
-    // console.log(currentAddition);
-
-
-    // console.log(currentFinalList);
-    return currentFinalList;
-
-}
-
-function getOrderForFinal(closestConnectionList){
-
-    let order = [];
-    
-    // console.log(closestConnectionList);
-
-    tempClosestConnectionList = closestConnectionList.slice();
-    startNode = idToNode(idOfStartNode());
-    tempClosestConnectionList.forEach((connectionList) => {
-
-        // 
-        if (connectionList[0] == startNode.id){
-            // console.log("found it");
-            order.push(startNode.id);
-
-            connectionList[1].forEach((nodeIdAndDistance) => {
-
-                order.push(nodeIdAndDistance[0]);
-
-            });
-
-        }
-
-    });
-    return order;
-
-}
-
-function connectClosestLines(nodeId, closestConnectionList, numOfConnection){
-
-    node = idToNode(nodeId);
-    // console.log("currentClosestLines node:", nodeId);
-
-    connectedNodesAndIdList = [];
-
-    closestConnectionList.forEach((nodeIdAndConnections) => {
-        if (nodeId == nodeIdAndConnections[0]){
-            connectedNodesAndIdList = nodeIdAndConnections[1];
-        }
-    });
-
-    let connectedTimes = 0;
-    // console.log("LIST: ",connectedNodesAndIdList);
-    for(i=0;i<connectedNodesAndIdList.length;i++){
-
-        if (connectedTimes < numOfConnection){
-            connectToNodeId = connectedNodesAndIdList[i][0];
-            // console.log(connectToNodeId);
-            connectToNode = idToNode(connectToNodeId);
-            if ((node.connectedPathId.indexOf(connectToNodeId) == -1) && (connectToNode.connectedPathId.indexOf(nodeId) == -1)){
-
-                node.connectedPathId.push(connectToNodeId);
-                connectedTimes += 1;
-            }
-        }
-        
-
-    }
-
-}
-
-
-
-
-
-
-
-
-// HOW THE RANDOM BUTTON WILL WORK:
-// 1. Get a list of all possible routes
-//   - start from "start" node.
-//   - go to all connected nodes
-//   - from each connected node, check all connected nodes that aren't already in the list
-//   - if at any point, node has no connected nodes then end the loop
-//   - if the connected node is "end node" then add this to a global list
-
-// 2. determine the distance each route travelled, order in terms of fastest to slowest
-// 3. Get x number of routes (randomly) with atleast half of the number of nodes on the map (making sure all nodes have atleast a single connection, if not, add a route with it)
-// 4. apply route connections to the final map.
-// 5. complete
-
-// 6. extra, be able to randomize the current layout's route with a button
-
-
-// first currentNodeIdTravelledList will be empty
-let finalRoutes = [];
-function getAllCombinations(startNodeId, endNodeId, currentNodeIdTravelledList, maxLenList){
-
-    if (currentNodeIdTravelledList.length > maxLenList){
-        // console.log("this route is too long");
-        return;
-    }
-
-    if (currentNodeIdTravelledList[currentNodeIdTravelledList.length - 1] == endNodeId){
-        // console.log("this route has finished");
-        // add this route to the final Routes
-        finalRoutes.push(currentNodeIdTravelledList);
-    }
-    else{
-        // if no list, then start with startNode
-        // console.log("currentNodeList:", currentNodeIdTravelledList);
-        if (currentNodeIdTravelledList.length == 0){
-            // console.log("there is no map, started loop with first node");
-            getAllCombinations(startNodeId, endNodeId, [startNodeId], maxLenList);   
-        }
-        else{
-            // console.log("route not finished");
-            let runRecursionOnList = [];
-            for(i = 0; i < createdMap.length; i++){
-                // console.log(i);
-                node = createdMap[i];
-                // console.log("currently on node:" ,node.id);
-                // is this not node in the list? then start loop with this new one it,
-                if (!currentNodeIdTravelledList.includes(node.id)){
-                    // console.log("found new node to add: ", node.id);
-                    let newCurrentNodeIdTravelledList = currentNodeIdTravelledList.slice();
-                    newCurrentNodeIdTravelledList.push(node.id);
-                    runRecursionOnList.push(newCurrentNodeIdTravelledList);
-                    // console.log("done adding new node", node.id);
-                }
-            }
-            // console.log("first loop run recursion on:", runRecursionOnList);
-            runRecursionOnList.forEach((route) => {
-                getAllCombinations(startNodeId, endNodeId, route, maxLenList);
-            })
-        }
-    }
-
-}
-
-function calculateRouteDistance(routeList){
-
-    for(i=0; i< routeList.length; i++){
-
-        route = routeList[i];
-        let totalDistance = 0;
-
-        for(j=0; j<route.length - 1;j++){
-            firstNode = idToNode(route[j]);
-            secondNode = idToNode(route[j+1]);
-            totalDistance += distanceBetweenPoints([firstNode.x, firstNode.y],[secondNode.x, secondNode.y]);
-        }
-        routeList[i].push(Math.floor(totalDistance));
-    }
-}
-
-function bubbleSortRouteDistance(routeListAfterDistance){
-
-    for(i=0;i<routeListAfterDistance.length;i++){
-        // console.log("doing");
-
-        for(j=0;j<routeListAfterDistance.length-1-i;j++){
-            // console.log("doing2");
-
-            
-            let leftDistance = routeListAfterDistance[j][routeListAfterDistance[j].length-1];
-            // console.log("leftDistance: ", leftDistance);
-            
-            let rightDistance = routeListAfterDistance[j+1][routeListAfterDistance[j+1].length-1];
-            // console.log("rightDistance: ", rightDistance);
-            if (leftDistance > rightDistance){
-                swap(routeListAfterDistance, j, j+1);
-                // console.log("swapped");
-            }
-
-        }
-    }
-}
-
-function swap(list, index1, index2){
-    let temp = list[index1];
-    list[index1] = list[index2];
-    list[index2] = temp;
-}
-
-function addConnectionToMap(firstId, secondId){
-
-
-    fromNode = idToNode(firstId);
-    toNode = idToNode(secondId);
-    
-    let alreadyConnected = false;
-    if (fromNode.connectedPathId.indexOf(toNode) != -1){
-        alreadyConnected = true;
-    }
-    if (toNode.connectedPathId.indexOf(fromNode) != -1){
-        alreadyConnected = true;
-    }
-    if (!alreadyConnected){
-        fromNode.connectedPathId.push(toNode.id);
-    }
-     
-}
-
-// addRouteToMap([1,2,3,4,54]);
-
-
-function randomNodeBtnFunc(){
-    // REMOVE ALL NODES
-
-    createMapWithMinimumOptimalRoute(4);
-
-}
-
-function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
-
-
-    createdMap = [];
-    testGame.updateNodeList();
-
-    placeRandomNode(10, 5, 10, 40, 45, 1);
-    placeRandomNode(10, 40, 45, 10, 15, 2);
-    placeRandomNode(10, 0, 48, 10, 48, 0);
-    placeRandomNode(10, 0, 48, 10, 48, 0);
-    testGame.updateNodeList();
-    closestConnectionList = getFinalListForClosestNode();
-    console.log(closestConnectionList);
-    orderToConnectLine = getOrderForFinal(closestConnectionList);
-    console.log("order:", orderToConnectLine);
-    orderToConnectLine.forEach((id) =>{
-        connectClosestLines(id, closestConnectionList, 2);
-    });
-
-    let doneMaking = false;
-    let counter = 0;
-    while (!doneMaking){
-        while (isAlgorithmComplete() == false){
-            clickStepBtn();
-        }
-        if (getFinalRoute().length >= minimumNumberOfNodeInOptimalRoute){
-            doneMaking = true;
-            clickResetMapBtn();
-        }
-        else{
-            createdMap = [];
-            testGame.updateNodeList();
-
-            placeRandomNode(10, 5, 10, 40, 45, 1);
-            placeRandomNode(10, 40, 45, 10, 15, 2);
-            placeRandomNode(10, 0, 48, 10, 48, 0);
-            for(i=0;i<counter/10;i++){
-                placeRandomNode(10, 0, 48, 10, 48, 0);
-                console.log("i: ", i);
-            }
-            
-            testGame.updateNodeList();
-            closestConnectionList = getFinalListForClosestNode();
-            console.log(closestConnectionList);
-            orderToConnectLine = getOrderForFinal(closestConnectionList);
-            console.log("order:", orderToConnectLine);
-            orderToConnectLine.forEach((id) =>{
-                connectClosestLines(id, closestConnectionList, 2);
-            });
-            counter += 1;
-            
-        }
-        console.log("counter:", counter);
-    }
-
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -2192,9 +1578,8 @@ testGame = new Game();
 
 
 
-// let map = [[5, 35, [], 0],[4, 19, [0,3,5]],[10, 45, [0,6]],[15, 32, [0,7]],[25, 11, [10]],[13, 18, [4]],[37, 48, [8,9]],[25, 30, [4,8]],[48, 30, [9]],[33, 37, [10]],[44, 10, [], 1]];
+let map = [[5, 35, [], 0],[4, 19, [0,3,5]],[10, 45, [0,6]],[15, 32, [0,7]],[25, 11, [10]],[13, 18, [4]],[37, 48, [8,9]],[25, 30, [4,8]],[48, 30, [9]],[33, 37, [10]],[44, 10, [], 1]];
 // let map = [[5, 35, [], 0],[4, 19, []],[10, 45, []],[15, 32, []],[36, 22, []],[13, 18, []],[37, 48, []],[25, 30, []],[48, 30, []],[33, 37, []],[44, 10, [], 1]];
-let map = [[6, 45, [], 0],[42, 10, [], 1],[4, 32, []],[9, 35, []],[22, 33, []],[35, 38, []],[16, 20, []],[5, 18, []],[9, 27, []],[21, 15, []],[9, 10, []],[33, 23, []],[40, 32, []],[32, 14, []],[47, 16, []]];
 
 let createdMap = [];
 
@@ -2203,7 +1588,7 @@ let createdMap = [];
 // -=-=-=-=-=-=-=-=- FIRST SCREEN -=-=-=-=-=-=-=-=-
 
 
-let startGameBtn = new Button(0, pToP(25), pToP(60), pToP(50), pToP(20), YELLOW, GREEN, "Click To Start!", BLACK, WHITE);
+let startGameBtn = new Button(0, 400, 500, 400, 150, YELLOW, GREEN, "Click To Start!", BLACK, WHITE);
 
 let firstScreenBG = new Box(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, AQUA);
 
@@ -2215,9 +1600,9 @@ firstScreen.addUIObject(startGameBtn);
 
 // -=-=-=-=-=-=-=-=- SECOND SCREEN -=-=-=-=-=-=-=-=-
 
-let tutorialGameBtn = new Button(1, pToP(25), pToP(20), pToP(50), pToP(20), YELLOW, GREEN, "Tutorial", BLACK, WHITE);
+let tutorialGameBtn = new Button(1, 400, 300, 400, 150, YELLOW, GREEN, "Tutorial", BLACK, WHITE);
 
-let levelGameBtn = new Button(2, pToP(25), pToP(50), pToP(50), pToP(20), YELLOW, GREEN, "Play", BLACK, WHITE);
+let levelGameBtn = new Button(2, 400, 500, 400, 150, YELLOW, GREEN, "Play", BLACK, WHITE);
 
 let secondScreenBG = new Box(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, PURPLE);
 
@@ -2229,25 +1614,19 @@ secondScreen.addUIObject(levelGameBtn);
 
 // -=-=-=-=-=-=-=-=- GAME SCREEN -=-=-=-=-=-=-=-=-
 
-let doConnectedNodeBtn = new Button(3, pToP(4), pToP(5), pToP(20), pToP(5), YELLOW, GREEN, "Next Step", BLACK, WHITE);
+let doConnectedNodeBtn = new Button(3, 25, 50, 200, 50, YELLOW, GREEN, "Next Step", BLACK, WHITE);
 
-let logCurrentMapBtn = new Button(4, pToP(52), pToP(5), pToP(20), pToP(5), YELLOW, GREEN, "Log Map", BLACK, WHITE);
+let logCurrentMapBtn = new Button(4, 525, 50, 200, 50, YELLOW, GREEN, "Log Map", BLACK, WHITE);
 
-let resetMapBtn = new Button(5, pToP(28), pToP(5), pToP(20), pToP(5), YELLOW, GREEN, "Reset Map", BLACK, WHITE);
+let resetMapBtn = new Button(5, 275, 50, 200, 50, YELLOW, GREEN, "Reset Map", BLACK, WHITE);
 
-let nextNodeBox = new InfoBox(pToP(52), pToP(5), pToP(20), pToP(5), YELLOW, "Next Node: 0", 30, 0);
+let nextNodeBox = new InfoBox(525, 50, 200, 50, YELLOW, "Next Node: 0", 30, 0);
 
-let enableEditingBtn = new Button(6, pToP(76), pToP(5), pToP(20), pToP(5), YELLOW, GREEN, "Enable Editing", BLACK, WHITE);
+let enableEditingBtn = new Button(6, 775, 50, 200, 50, YELLOW, GREEN, "Enable Editing", BLACK, WHITE);
 
-let moveNodeBtn = new Button(7, pToP(4), pToP(5), pToP(20), pToP(5), RED, YELLOW, "Move Node", BLACK, WHITE);
+let moveNodeBtn = new Button(7, 25, 50, 200, 50, RED, YELLOW, "Move Node", BLACK, WHITE);
 
-let editNodeConnectionBtn = new Button(8, pToP(28), pToP(5), pToP(20), pToP(5), RED, YELLOW, "Edit Connections", BLACK, WHITE);
-
-let removeNodeBtn = new Button(9, pToP(28), pToP(12), pToP(20), pToP(5), RED, YELLOW, "Remove Node", BLACK, WHITE);
-
-let addNodeBtn = new Button(10, pToP(4), pToP(12), pToP(20), pToP(5), RED, YELLOW, "Add Node", BLACK, WHITE);
-
-let randomNodeBtn = new Button(11, pToP(76), pToP(12), pToP(20), pToP(5), YELLOW, GREEN, "Randomise Node", BLACK, WHITE);
+let editNodeConnectionBtn = new Button(8, 275, 50, 200, 50, RED, YELLOW, "Edit Node Connections", BLACK, WHITE);
 
 let playScreen = new Screen(2, "secondScreen", []);
 playScreen.addButton(doConnectedNodeBtn);
@@ -2255,36 +1634,8 @@ playScreen.addButton(resetMapBtn);
 playScreen.addForegroundObject(nextNodeBox);
 playScreen.addButton(enableEditingBtn);
 
-
 mapToCreatedMap(map, createdMap);
 testGame.updateNodeList();
-
-closestConnectionList = getFinalListForClosestNode();
-    console.log(closestConnectionList);
-    orderToConnectLine = getOrderForFinal(closestConnectionList);
-    console.log("order:", orderToConnectLine);
-    orderToConnectLine.forEach((id) =>{
-        connectClosestLines(id, closestConnectionList, 1);
-    });
-
-
-// console.log(createdMap);
-// getAllCombinations(0, 1, [], 4);
-// console.log("final map:");
-// console.log(finalRoutes);
-
-// calculateRouteDistance(finalRoutes);
-// console.log(finalRoutes);
-
-// bubbleSortRouteDistance(finalRoutes);
-// console.log(finalRoutes);
-
-
-// for(i=0;i<30;i++){
-//     if (finalRoutes[i].length == 5){
-//         addConnectionToMap(finalRoutes[i][1], finalRoutes[i][2]);
-//     }
-// }
 
 // -=-=-=-=-=-=-=-=- EDITING SETUP -=-=-=-=-=-=-=-=-
 
@@ -2300,9 +1651,7 @@ screenList = [firstScreen, secondScreen, playScreen];
 // ---------------------------------------------------------------------------------------------------------------------------------
 
 
-
 function mainLoop(){
-    // console.log("looping");
     // console.log(playScreen);
 
     mouseClickPos = mouseClickPosInCanvas();
