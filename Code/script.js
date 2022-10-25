@@ -16,8 +16,8 @@ const ctx = canvas.getContext('2d');
 const CANVAS_WIDTH = canvas.width = 750;
 const CANVAS_HEIGHT = canvas.height = 750;
 
-const carImage = new Image();
-carImage.src = 'Images/car.png';
+// const carImage = new Image();
+// carImage.src = 'Images/car.png';
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                      CONSTANTS
@@ -38,6 +38,8 @@ const GREY = "#D3D3D3";
 // GRID
 const GRID_LENGTH = 50;
 const GRID_HEIGHT = 50;
+
+
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                      CLASSES
@@ -127,6 +129,59 @@ const GRID_HEIGHT = 50;
 
 
 console.log("testing", 0/100)
+
+let offScreenCanvas = document.createElement('canvas');
+let offScreenCtx = offScreenCanvas.getContext('2d');
+class MyImage{
+    constructor(imageName, x, y, width, height){
+        this.imageName = imageName;
+        this.image = new Image();
+        this.image.src = "Images/" + this.imageName;
+        this.x = x;
+        this.y = y;
+        this.height = height;
+        this.width = width;
+        this.rotateInDegree = 0.1;
+
+        offScreenCanvas.width = this.width;
+        offScreenCanvas.height = this.height;
+    }
+
+    draw(){
+        offScreenCtx.fillStyle = GREEN;
+        offScreenCtx.fillRect(0, 0, this.width, this.height);
+
+        // draw object
+        offScreenCtx.translate(this.width / 2, this.height / 2);
+        this.rotate(this.rotateInDegree);
+
+        offScreenCtx.translate(-this.width / 2, -this.height / 2);
+        offScreenCtx.drawImage(this.image, 0, 0, this.width, this.height);
+
+        ctx.drawImage(offScreenCanvas, this.x -(this.width / 2), this.y - (this.height /2), this.width, this.height);
+
+        // drawBox(0, 0, this.width, this.height, GREEN, offScreenCtx);
+        // offScreenCtx.translate(150, 0);
+        // offScreenCtx.rotate(Math.PI/2);
+        // offScreenCtx.translate(-400, -400);
+        // offScreenCtx.drawImage(this.image, 0, 0, this.width, this.height, this.x, this.y, CANVAS_WIDTH, CANVAS_HEIGHT);
+        // offScreenCtx.restore();
+
+        // ctx.drawImage(offScreenCanvas, 0, 0, this.width, this.height);
+
+        // ctx.save();
+        // ctx.translate(this.x + this.width, this.y + this.height);
+        // ctx.rotate(Math.PI / 2);
+        // ctx.drawImage(this.image, 0, 0, this.width, this.height, this.x, this.y, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // ctx.drawImage(this.image, 0, 0, this.width, this.height, this.x, this.y, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+    rotate(degree){
+        offScreenCtx.rotate((Math.PI / 180) * degree);
+    }
+
+}
+
 
 class Game{
 
@@ -400,7 +455,7 @@ class Game{
 
     removeAllNode(){
 
-        console.log("nodelist before:", this.nodeList);
+        // console.log("nodelist before:", this.nodeList);
         while (this.nodeList.length != 0){
             this.removeNode(this.nodeList[0]);
         }
@@ -1421,6 +1476,11 @@ function drawBox(x, y, width, height, color){
     ctx.fillRect(x, y, width, height);
 }
 
+// function drawBox(x, y, width, height, color, ctx){
+//     ctx.fillStyle = color;
+//     ctx.fillRect(x, y, width, height);
+// }
+
 // 1000 px across
 // 1000 px down
 
@@ -1552,7 +1612,7 @@ function colorFinalPath(){
             node = testGame.getNodeFromId(id);
             node.partOfFinalLine = true;
         });
-        console.log("finalRouteNodes: ", finalRouteNodes);
+        // console.log("finalRouteNodes: ", finalRouteNodes);
     }
     
     
@@ -1630,6 +1690,11 @@ function getFinalRoute(){
             console.log("final route:", currentRoute);
             return currentRoute;
         }
+        else{
+            console.log("end node hasn't been reached ever");
+            return null;
+        }
+        console.log("returning null from finalRoute");
         return null;
 
     }
@@ -2269,7 +2334,7 @@ function addConnectionToMap(firstId, secondId){
 
 function randomNodeBtnFunc(){
     // REMOVE ALL NODES
-    createMapWithMinimumOptimalRoute(6);
+    createMapWithMinimumOptimalRoute(5);
 
 }
 
@@ -2296,34 +2361,38 @@ function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
         while (!testGame.isSimulationComplete){
             clickStepBtn();
         }
-        
-        if (getFinalRoute().length >= minimumNumberOfNodeInOptimalRoute){
-            doneMaking = true;
-            clickResetMapBtn();
+        if (testGame.getEndNode().checked){
+            console.log("end node has been checked");
+            if (getFinalRoute().length >= minimumNumberOfNodeInOptimalRoute){
+                doneMaking = true;
+                clickResetMapBtn();
+            }
+            else{
+                testGame.isMapComplete = false;
+                testGame.removeAllNode();
+    
+                placeRandomNode(10, 5, 10, 22, 27, 1, 100);
+                placeRandomNode(10, 40, 45, 22, 27, 2, 100);
+                // placeRandomNode(10, 2, 48, 10, 48, 0, 100);
+                for(i=0;i<(counter/10 + minimumNumberOfNodeInOptimalRoute);i++){
+                    placeRandomNode(10, 2, 48, 10, 48, 0, 5);
+                    // console.log("i: ", i);
+                }
+                testGame.isMapComplete = true;
+                closestConnectionList = getFinalListForClosestNode();
+                // console.log(closestConnectionList);
+                orderToConnectLine = getOrderForFinal(closestConnectionList);
+                // console.log("order:", orderToConnectLine);
+                orderToConnectLine.forEach((id) =>{
+                    connectClosestLines(id, closestConnectionList, 2);
+                });
+                counter += 1;       
+            }
         }
         else{
-            testGame.isMapComplete = false;
-            testGame.removeAllNode();
-
-            placeRandomNode(10, 5, 10, 22, 27, 1, 100);
-            placeRandomNode(10, 40, 45, 22, 27, 2, 100);
-            // placeRandomNode(10, 2, 48, 10, 48, 0, 100);
-            for(i=0;i<(counter/10 + minimumNumberOfNodeInOptimalRoute);i++){
-                placeRandomNode(10, 2, 48, 10, 48, 0, 100);
-                // console.log("i: ", i);
-            }
-            testGame.isMapComplete = true;
-            closestConnectionList = getFinalListForClosestNode();
-            console.log(closestConnectionList);
-            orderToConnectLine = getOrderForFinal(closestConnectionList);
-            console.log("order:", orderToConnectLine);
-            orderToConnectLine.forEach((id) =>{
-                connectClosestLines(id, closestConnectionList, 2);
-            });
-            counter += 1;
-            
+            console.log("end node has not been checked");
         }
-        console.log("counter:", counter);
+        // console.log("counter:", counter);
     }
 
 }
@@ -2384,7 +2453,7 @@ function mouseHoverPosInCanvas()
     var canvasY;
     canvasX = globalMouseHoverX - (window.innerWidth / 2) + (CANVAS_WIDTH / 2);
     canvasY = globalMouseHoverY - (window.innerHeight / 2) + (CANVAS_HEIGHT / 2);
-
+    console.log([canvasX, canvasY]);
     return [canvasX, canvasY];
 
 }
@@ -2469,6 +2538,14 @@ testGame.setMap(map);
 editObj = new Editing();
 playScreen.addUpdateObject(editObj);
 
+// -=-=-=-=-=-=-=-=- IMAGE SETUP -=-=-=-=-=-=-=-=-
+
+let myCarImage = new MyImage("car.png", 150, 50, 100, 100);
+
+let myRoadImage = new MyImage("TestAllRoad.png", 200, 250, 100, 100);
+
+firstScreen.addForegroundObject(myCarImage);
+firstScreen.addForegroundObject(myRoadImage);
 
 
 screenList = [firstScreen, secondScreen, playScreen];
@@ -2478,16 +2555,14 @@ screenList = [firstScreen, secondScreen, playScreen];
 // ---------------------------------------------------------------------------------------------------------------------------------
 
 
-// console.log(testGame)
 function mainLoop(){
-    // console.log("looping");
-    // console.log(playScreen);
 
     mouseClickPos = mouseClickPosInCanvas();
     
     mouseHoverPos = mouseHoverPosInCanvas();
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
 
     
     screenList.forEach((screen) => {
@@ -2503,9 +2578,9 @@ function mainLoop(){
     }
     testGame.update();
     colorFinalPath();
-
     click = false;
     requestAnimationFrame(mainLoop);
 
 }
+
 mainLoop()
