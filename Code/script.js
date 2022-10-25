@@ -35,225 +35,335 @@ const PURPLE = "#CD00FF";
 const PINK = "#FF00D8";
 const GREY = "#D3D3D3";
 
+// GRID
+const GRID_LENGTH = 50;
+const GRID_HEIGHT = 50;
+
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                      CLASSES
 // ---------------------------------------------------------------------------------------------------------------------------------
+
+// -=-=-=-=- Game Class -=-=-=-=- 
+
+// -=-=- Attributes -=-=-
+// nodeList (List) -> A list of all nodes
+// heuristicMult (Integer) -> a multiplier to calculate heuristics
+// isMapComplete (Boolean) -> check if, when creating the map, is there a start and end node. if not, can't run this map
+// isSimulationComplete (Boolean) -> check if the simulation is done
+// 
+
+// -=-=- Methods -=-=-
+// updateNodeList()
+// anyNodeRemaining()
+// nextNodeToCheck()
+// updateConnectedNodes(currentNode)
+// costOfPath(firstNode, secondNode)
+// idToNode(id)
+// updateAllHeuristic()
+
+// What should be done:
+// Complete - Made
+// Method: SetMap(map) -> input a map which sets the node arrangement
+//                        first Check if every node is valid by checking if they have an x, y and a list (could be empty) for connected nodes
+//                        run "isMapRunable()" to check for start/end node 
+//                        Sets "nodeList" to the map by creating Nodes
+//                        updateHeuristics of all nodes
+
+// Incomplete
+// Method: runNextNode() -> 
+//                          Check boolean "isMapComplete" if false, then don't run this method
+//                          Check boolean "isMapComplete" if true, then continue
+//                          get the next node to check with method "getNextNode()"
+//                          if "getNextNode()" is null, don't continue, set "isSimulationComplete" to true
+//                          if "getNextNode()" returns a node, get all connected nodes and put them in a list "connectedNodeList"
+//                          for each node in "connectedNodeList", run the node's method "updateValues(node, distance)"
+//                          get the distance from method distanceBetweenPoints()
+//                          
+// 
+
+// Complete
+// Method: isMapRunable() -> Find out if map has all the requirements to run "runNextNode()", this includes:
+//                          Check if there is a start and end node
+//                           
+
+// Complete
+// Method: getNextNode() -> Check boolean "isMapComplete", only run if true
+//                          If no node is found, return "null"
+//                          check if the first Node is already "visited", if not, return the first Node
+//                          Go through nodeList and for every visited node, get all the connected Nodes from method "getConnectedNodeList(Node)"
+//                          add all connected Nodes to a list "nodesToCheckList" (make sure there are no duplicates by checking if node is already in list)
+//                          if "nodesToCheckList" has a length of 0, return null
+//                          go through all nodes in the "nodesToCheckList" and return node with lowest f value
+
+// Complete
+// Method: getConnectedNodeList(Node) -> for every node id in the "connectedNodeList", get the node with "getNodeFromId(node)"
+//                                       if the node returns "null" then do nothing
+//                                       if a node is returned, add it to a list
+//                                       for every node in the nodeList, check if that node's connectedNodeList contains the original node
+//                                       if the other node, contains original node, add the other node to the list
+//                                       return the list (could be empty)
+
+// Complete
+// Method: getNodeFromId(node) -> Loop through nodeList and return the node with the correct id
+//                                if no node is found, return "null"
+
+
+// -=-=-=-=- Node Class -=-=-=-=- 
+
+// -=-=-=- Attributes -=-=-=-=-
+// visited (boolean) -> if this node's connected node's have been checked
+// checked (boolean) -> if this node has been checked by any of it's connected nodes
+
+// g (int) -> shortest distance
+// heuristic -> Distance from end to this node
+// f -> g + heuristic
+ 
+// -=-=-=- Methods -=-=-=-
+// updateValues(previousNode, distanceFromPrevious) -> if node not visited
+//                                                  if checked is false, set g to previousNode.g + distanceFromPrevious, set f to new g + heuristic,
+//                                                      set previousNodeId (node's attribute) to previousNode.id
+//                                                  if checked is true, check if previousNode.g + distanceFromPrevious is less than
+//                                                      previously set g, if so, 
+
+
+console.log("testing", 0/100)
 
 class Game{
 
     constructor(){
 
+        // nodeList (List) -> A list of all nodes
+        // heuristicMult (Integer) -> a multiplier to calculate heuristics
+        // isMapComplete (Boolean) -> check if, when creating the map, is there a start and end node. if not, can't run this map
+        // isSimulationComplete (Boolean) -> check if the simulation is done
         this.nodeList = [];
-        this.vertexList = [];
-
         this.heuristicMult = 1;
+        this.isMapComplete = false;
+        this.isSimulationComplete = false;
+        this.isHeuristicCalculated = false;
     }
 
-
-    updateNodeList(){
-        this.nodeList = createdMap;
-        playScreen.resetBackgroundNode();
-    }
-
-    anyNodeRemaining(){
-        // GO through every node, if they are not visited and they are not final node, then there are nodes to search
-        let returning = false;
-        this.nodeList.forEach((node) => {
-            if (node.visited == false && node.isItEnd == false){
-                returning = true;
+    update(){
+        if (this.isMapComplete){
+            let nextNode = this.getNextNode();
+            if (nextNode == this.getEndNode()){
+                this.isSimulationComplete = true;
+                // console.log("")
             }
-        });
-        // console.log("-=-=- nodes remaining:" + returning);
-        return returning;
+        }
     }
 
+    setMap(map){
 
-    // FINDS LOWEST F VALUE 
-    nextNodeToCheck(){
+        // reset nodeList
+        this.nodeList = [];
 
-        if (this.anyNodeRemaining() == false){
+        // index 1: xPos (from 1-50)
+        // index 2: yPos (from 1-50)
+        // index 3: connected Nodes list of indexes (index in the map)
+        // index 4: 0 = startNode, 1 = endNode
+        if (this.isMapValid(map)){
+            this.isMapComplete = true;
 
-            // console.log("completed the search");
-            return false;
-
-        }
-        // console.log("NOT COMPLETED SEARCH")
-
-        if (this.anyNodeRemaining() == true){
-            // console.log("-=-=-=- FINDING NEXT NODE -=-=-=-");
-            let returnNode = null;
-            let currentLowestF = -1;
-            this.nodeList.forEach((node) => {
-
-                // console.log("lowest F:" + currentLowestF);
-                // console.log("-=-=-inspecting node ID:" + node.id);
-                // If we still need to check this node
-                if (node.visited == false){
-                    // console.log("Node not visited")
-                    
-                    // If this node has an F value (meaning it's been connected by another node)
-                    if (node.f != -1){
-                        // console.log("Contains an F value");
-                        // If no node has been selected yet, select this one because its the lowest so far
-                        if (currentLowestF == -1){
-                            // console.log("Node set to returnNode");
-                            currentLowestF = node.f;
-                            returnNode = node;
-                        }
-                        // Select the smallest f value node
-    
-                        if (node.f < currentLowestF){
-                            // console.log("Node set to returnNode");
-                            currentLowestF = node.f;
-                            returnNode = node;
-                            // console.log("lowest node so far with value:" + currentLowestF);
-                        }
-                    
-                    }
-                    else{
-                        // console.log("not connected by visited");
-                    }
+            for (let i=0; i < map.length; i++){
+                let gridX = map[i][0];
+                let gridY = map[i][1];
+        
+                let isItStartOrEnd = map[i][3];
+        
+                let start = false;
+                let end = false;
+        
+                if (isItStartOrEnd == 0){
+                    start = true;
+                }
+                if (isItStartOrEnd == 1){
+                    end = true;
+                }
+                
+                let newNode = new Node(i, gridX, gridY, start, end);
+                if (map[i][2]){
+                    newNode.connectedPathId = map[i][2];
                 }
                 else{
-                    // console.log("visited");
+                    newNode.connectedPathId = [];
                 }
-    
-            });
-            // IF START NODE NOT VISITED, THEN USE THAT NODE
-            this.nodeList.forEach((node) => {
-                if (node.isItStart){
-    
-                    if (node.visited == false){
-                        // console.log("start Node not visited, using start node.");
-                        returnNode = node;
-                        node.g = 0;
-                        node.f = node.g + node.heuristic;
-                    }
-    
-                }
-            });
-    
-            console.log("returning node:" + returnNode.id);
-            return returnNode;
             
+                this.nodeList.push(newNode);
+                playScreen.addBackgroundObject(newNode);
+            
+            }
+            testGame.updateAllHeuristic();
         }
-        console.log("incompleted searching for next node");
     }
 
+    // THINGS NOT ACCOUNTED FOR:
+    // WRONG TYPE OF VARIABLE IN A "nodeDetailList", AKA STRING/BOOLEAN INSTEAD OF xPos being integer
 
-    updateConnectedNodes(currentNode){
+    isMapValid(map){
+        // index 1: xPos (from 1-50)
+        // index 2: yPos (from 1-50)
+        // index 3: connected Nodes list of indexes (index in the map)
+        // index 4: 0 = startNode, 1 = endNode
 
-        // Get a list of all nodes to be updated (connected ones)
+        // are all nodes valid? check if they have x, y, connectedNodeList (can be empty), theres one start and one end
+        let numOfStartNode = 0;
+        let numOfEndNode = 0;
+        let areAllNodeValid = true;
+        map.forEach((nodeDetailList) => {
 
-        // console.log("selected node:", currentNode);
-
-        let toCheckNodeList = [];
-
-        currentNode.connectedPathId.forEach((connectedPathId) => {
-            // GET CONNECTED NODE OBJECT
-            let connectedNode = this.idToNode(connectedPathId);
-
-            // FIND COST OF PATH
-            let connectedPathCost = this.costOfPath(currentNode, connectedNode);
-
-            if (connectedNode.visited == false){
-                // ADD TO LIST
-                toCheckNodeList.push([connectedNode, connectedPathCost]);
-            }
-        });
-        // THEN CHECK IF THE CURRENTNODE IS IN ANY OTHER NODE'S PATHID
-
-        // LOOP THROUGH ALL NODES
-        createdMap.forEach((node) => {
-
-            // IF NODE'S PATHID LIST CONTAINS CURRENTNODE'S ID
-            if (node.connectedPathId.includes(currentNode.id)){
-                // IF NODE IS NOT IN THE CHECKNODELIST ALREADY
-                if (toCheckNodeList.includes(node) == false){
-                    // ADD NODE TO THE CHECKLIST
-                    let connectedPathCost = this.costOfPath(currentNode, node);
-                    toCheckNodeList.push([node, connectedPathCost]);
+            let thisOneValid = false;
+            // if correct num of items
+            if (nodeDetailList.length == 3 || nodeDetailList.length == 4){
+                // accounting for normal nodes
+                let xPos = nodeDetailList[0];
+                let yPos = nodeDetailList[1];
+                let connectedNodeList = nodeDetailList[2];
+                // if x Value in the grid cord AND if y Value in grid cord
+                if (((xPos > 0) && (xPos < GRID_LENGTH)) && ((yPos > 0) && (yPos < GRID_LENGTH))){
+                    // if it's a list (or object i guess)
+                    if (typeof (connectedNodeList) == "object"){
+                        thisOneValid = true;
+                    }
+                } 
+                // if it's start or end node,
+                if (nodeDetailList.length == 4){
+                    if (nodeDetailList[3] == 0){
+                        numOfStartNode += 1;
+                    }
+                    if (nodeDetailList[3] == 1){
+                        numOfEndNode += 1;
+                    }
+                    if ((nodeDetailList[3] != 0) && (nodeDetailList[3] != 1)){
+                        thisOneValid = false;
+                    }
                 }
             }
-
+            if (thisOneValid == false){
+                areAllNodeValid = false;
+            }
         });
+        if ((numOfStartNode != 1) || (numOfEndNode != 1)){
+            areAllNodeValid = false;
+        }
+        console.log("areAllNodeValid: ", areAllNodeValid);
+        return areAllNodeValid;
+    }
 
-        // console.log("connected Nodes to be checked:", toCheckNodeList);
-
-        let currentNodeG = currentNode.g;
-
-
-        // Go through each node, if the f value is undefined or lower than previous f value, update node accordingly
-        // console.log("updating connected nodes");
-        toCheckNodeList.forEach((nodeAndCost) => {
-            let node = nodeAndCost[0];
-            // console.log("-=-=- checking node:" + node.id);
-            if (node.visited){
-                // console.log("node already visited, skipped.")
+    runNextNode(){
+        if (!this.isHeuristicCalculated){
+            this.updateAllHeuristic();
+            this.isHeuristicCalculated = true;
+        }
+        if (!this.isSimulationComplete){
+            let nextNode = this.getNextNode();
+            // console.log(nextNode);
+            if (nextNode == null){
+                this.isSimulationComplete = true;
             }
-            else{
-                let travelToNodeCost = nodeAndCost[1];
-
-            // console.log("node to be updated:", node);
-            // console.log("the cost to travel to this node:", travelToNodeCost);
-
-            // If connected node's g is undefined, set it
-
-            if (node.g == -1){
-                // console.log("this node is new, setting g, f, previousNode")
-                node.g = currentNode.g + travelToNodeCost;
+            if (nextNode == this.getEndNode()){
+                this.isSimulationComplete = true;
+                return;
             }
+            let connectedNodeList = this.getConnectedNodeList(nextNode);
 
-            // If connected Node's f is undefined, set it 
-            if (node.f == -1){
-                node.f = node.g + node.heuristic;
-            }
-            // if connected node has no previous node, then set it
-            if (node.previousNode == -1){
-                node.previousNode = currentNode.id;
+            if (connectedNodeList == null){
+                this.isSimulationComplete = true;
+                return;
             }
 
-            // If the connected node's f value is higher than new g value, replace higher value with smaller
+            connectedNodeList.forEach((node) => {
+                if (node.visited == false){
+                    let distance = distanceBetweenPoints([node.x, node.y],[nextNode.x, nextNode.y]);
+                    node.updateValues(nextNode, distance);
+                }
+            })
+            nextNode.visited = true;
+        }
+        updateNextNodeBoxText();
+    }
 
-            if ((currentNodeG + travelToNodeCost + node.heuristic) < node.f){
-                console.log("this node's previous f value is higher than current, so update it.");
-                console.log("-=-= previous:");
-                console.log("node.g = ",node.g);
-                console.log("node.f = ",node.f);
-                node.g = travelToNodeCost + currentNodeG;
-                node.f = node.g + node.heuristic;
-                node.previousNode = currentNode.id;
-                console.log("-=-= after:");
-                console.log("node.g = ",node.g);
-                console.log("node.f = ",node.f);
-            }
-            }
-            
+    getNextNode(){
 
-        });
-        // Set this node to visited!
-        // console.log("set visited to true!");
-        currentNode.visited = true;
+        if (this.isMapComplete){
+            // console.log("getting next node!");
+            // console.log("map complete");
+
+            let startNode = this.getStartNode();
+            if (!startNode.visited){return startNode;}
+            let nodesToCheckList = [];
+            this.nodeList.forEach((node) => {
+                // console.log("checking node id:", node.id);
+                if (node.visited){
+                    // console.log("node is visited, grabbing nodes next to it.");
+                    let connectedNodeList = this.getConnectedNodeList(node);
+                    // console.log("nodes connected to id: ",node.id, " are:", connectedNodeList);
+                    connectedNodeList.forEach((connectedNode) => {
+                        if (connectedNode.visited == false){
+                            if (nodesToCheckList.indexOf(connectedNode) == -1){nodesToCheckList.push(connectedNode);}
+                        }
+                    });
+                }
+            });
+
+            let smallestFNode = null;
+            nodesToCheckList.forEach((node) => {
+                if (smallestFNode == null){
+                    smallestFNode = node;
+                }
+                if (node.f < smallestFNode.f){
+                    smallestFNode = node;
+                }
+            });
+            // console.log("got node:", smallestFNode);
+            return smallestFNode;
+
+        }
+        return null;
 
     }
 
+    getConnectedNodeList(node){
 
-    costOfPath(firstNode, secondNode){
-        let firstDistanceX = firstNode.x;
-        let firstDistanceY = firstNode.y;
-        let secondDistanceX = secondNode.x;
-        let secondDistanceY = secondNode.y;
+        if (node == null){
+            return null;
+        }
 
-        let distanceX = secondDistanceX - firstDistanceX;
-        let distanceY = secondDistanceY - firstDistanceY;
+        let connectedNodeList = [];
 
-        let distance = Math.sqrt((distanceX ** 2) + (distanceY ** 2));
+        node.connectedPathId.forEach((id) => {
+            let connectedNode = this.getNodeFromId(id);
+            connectedNodeList.push(connectedNode);
+        });
 
-        return distance;
-
+        this.nodeList.forEach((thisNode) => {
+            if (thisNode.connectedPathId.indexOf(node.id) != -1){
+                if (connectedNodeList.indexOf(thisNode) == -1){
+                    connectedNodeList.push(thisNode);
+                }
+            }
+        });
+        // console.log("got the list:", connectedNodeList);
+        return connectedNodeList;
     }
 
-    idToNode(id){
+    getStartNode(){
+        let returnNode = null;
+        this.nodeList.forEach((node) => {
+            if (node.isItStart){returnNode = node;}
+        });
+        return returnNode;
+    }
+
+    getEndNode(){
+        let returnNode = null;
+        this.nodeList.forEach((node) => {
+            if (node.isItEnd){returnNode = node;}
+        });
+        return returnNode;
+    }
+
+    getNodeFromId(id){
         let returnNode = null;
         if (this.nodeList){
             this.nodeList.forEach((node) => {
@@ -265,58 +375,276 @@ class Game{
             // NO ID FOUND
         }
         return returnNode;
-        
     }
 
     updateAllHeuristic(){
         // GET THE END NODE
-        let endNode = null;
+        let endNode = this.getEndNode();
         this.nodeList.forEach((node) => {
-
-            if (node.isItEnd){
-                endNode = node;
-            }
-
-        });
-
-        // GET X AND Y OF END NODE
-        let endX = endNode.x;
-        let endY = endNode.y;
-
-        
-        // GET X AND Y OF EACH NODE
-
-        this.nodeList.forEach((node) => {
-
             // IF NOT END NODE
             if (node.isItEnd == false){
-
-                let startX = node.x;
-                let startY = node.y;
-
                 // CALCULATE DISTANCE
-
-                let distanceX = endX - startX;
-                let distanceY = endY - startY;
-
-                // console.log(distanceX);
-                // console.log(distanceY);
-
-                let distance = Math.round(Math.sqrt((distanceX ** 2) + (distanceY ** 2)));
-
-                // console.log(distanceX ** 2);
-                
+                let distance = distanceBetweenPoints([node.x, node.y], [endNode.x, endNode.y]);
                 // MULTIPLY H BY MULTIPLIER
                 distance *= this.heuristicMult;
-                
                 node.heuristic = distance;
-
             }
-
         });
+    }
+    addNode(node){
+        this.nodeList.push(node);
+        this.resetNode();
+        playScreen.addBackgroundObject(node);
+        // this.updateAllHeuristic();
+    }
+
+    removeAllNode(){
+
+        console.log("nodelist before:", this.nodeList);
+        while (this.nodeList.length != 0){
+            this.removeNode(this.nodeList[0]);
+        }
 
     }
 
+    removeNode(nodeToRemove){
+        testGame.nodeList.forEach((node) => {
+
+            // if the node is ID is in connectedPathId of any node, remove the ID from connectedPathId
+            let index = node.connectedPathId.indexOf(nodeToRemove.id);
+            if (index != -1){
+                node.connectedPathId.splice(index, 1);
+            }
+
+        });
+        // remove node from nodeList
+        let index = testGame.nodeList.indexOf(nodeToRemove);
+        testGame.nodeList.splice(index, 1);
+
+        // remove node from background Object
+        playScreen.removeBackgroundObject(nodeToRemove);
+
+        // reset all nodes;
+        testGame.resetNode();
+    }
+
+    resetNode(){
+        this.nodeList.forEach((node) => {
+            node.g = null;
+            node.f = null;
+            node.previousNode = null;
+            node.visited = false;
+            node.checked = false;
+            node.partOfFinalLine = false;
+            // if (node.id == 0){
+            //     visited = false;
+            // }
+        });
+        testGame.isSimulationComplete = false;
+    }
+
+    // updateNodeList(){
+    //     this.nodeList = createdMap;
+    //     playScreen.resetBackgroundNode();
+    // }
+
+    // anyNodeRemaining(){
+    //     // GO through every node, if they are not visited and they are not final node, then there are nodes to search
+    //     let returning = false;
+    //     this.nodeList.forEach((node) => {
+    //         if (node.visited == false && node.isItEnd == false){
+    //             returning = true;
+    //         }
+    //     });
+    //     // console.log("-=-=- nodes remaining:" + returning);
+    //     return returning;
+    // }
+
+
+    // FINDS LOWEST F VALUE 
+    // nextNodeToCheck(){
+
+    //     if (this.anyNodeRemaining() == false){
+
+    //         // console.log("completed the search");
+    //         return false;
+
+    //     }
+    //     // console.log("NOT COMPLETED SEARCH")
+
+    //     if (this.anyNodeRemaining() == true){
+    //         // console.log("-=-=-=- FINDING NEXT NODE -=-=-=-");
+    //         let returnNode = null;
+    //         let currentLowestF = -1;
+    //         this.nodeList.forEach((node) => {
+
+    //             // console.log("lowest F:" + currentLowestF);
+    //             // console.log("-=-=-inspecting node ID:" + node.id);
+    //             // If we still need to check this node
+    //             if (node.visited == false){
+    //                 // console.log("Node not visited")
+                    
+    //                 // If this node has an F value (meaning it's been connected by another node)
+    //                 if (node.f != -1){
+    //                     // console.log("Contains an F value");
+    //                     // If no node has been selected yet, select this one because its the lowest so far
+    //                     if (currentLowestF == -1){
+    //                         // console.log("Node set to returnNode");
+    //                         currentLowestF = node.f;
+    //                         returnNode = node;
+    //                     }
+    //                     // Select the smallest f value node
+    
+    //                     if (node.f < currentLowestF){
+    //                         // console.log("Node set to returnNode");
+    //                         currentLowestF = node.f;
+    //                         returnNode = node;
+    //                         // console.log("lowest node so far with value:" + currentLowestF);
+    //                     }
+                    
+    //                 }
+    //                 else{
+    //                     // console.log("not connected by visited");
+    //                 }
+    //             }
+    //             else{
+    //                 // console.log("visited");
+    //             }
+    
+    //         });
+    //         // IF START NODE NOT VISITED, THEN USE THAT NODE
+    //         this.nodeList.forEach((node) => {
+    //             if (node.isItStart){
+    
+    //                 if (node.visited == false){
+    //                     // console.log("start Node not visited, using start node.");
+    //                     returnNode = node;
+    //                     node.g = 0;
+    //                     node.f = node.g + node.heuristic;
+    //                 }
+    
+    //             }
+    //         });
+    
+    //         console.log("returning node:" + returnNode.id);
+    //         return returnNode;
+            
+    //     }
+    //     console.log("incompleted searching for next node");
+    // }
+
+
+    // updateConnectedNodes(currentNode){
+
+    //     // Get a list of all nodes to be updated (connected ones)
+
+    //     // console.log("selected node:", currentNode);
+
+    //     let toCheckNodeList = [];
+
+    //     currentNode.connectedPathId.forEach((connectedPathId) => {
+    //         // GET CONNECTED NODE OBJECT
+    //         let connectedNode = this.idToNode(connectedPathId);
+
+    //         // FIND COST OF PATH
+    //         let connectedPathCost = this.costOfPath(currentNode, connectedNode);
+
+    //         if (connectedNode.visited == false){
+    //             // ADD TO LIST
+    //             toCheckNodeList.push([connectedNode, connectedPathCost]);
+    //         }
+    //     });
+    //     // THEN CHECK IF THE CURRENTNODE IS IN ANY OTHER NODE'S PATHID
+
+    //     // LOOP THROUGH ALL NODES
+    //     createdMap.forEach((node) => {
+
+    //         // IF NODE'S PATHID LIST CONTAINS CURRENTNODE'S ID
+    //         if (node.connectedPathId.includes(currentNode.id)){
+    //             // IF NODE IS NOT IN THE CHECKNODELIST ALREADY
+    //             if (toCheckNodeList.includes(node) == false){
+    //                 // ADD NODE TO THE CHECKLIST
+    //                 let connectedPathCost = this.costOfPath(currentNode, node);
+    //                 toCheckNodeList.push([node, connectedPathCost]);
+    //             }
+    //         }
+
+    //     });
+
+    //     // console.log("connected Nodes to be checked:", toCheckNodeList);
+
+    //     let currentNodeG = currentNode.g;
+
+
+    //     // Go through each node, if the f value is undefined or lower than previous f value, update node accordingly
+    //     // console.log("updating connected nodes");
+    //     toCheckNodeList.forEach((nodeAndCost) => {
+    //         let node = nodeAndCost[0];
+    //         // console.log("-=-=- checking node:" + node.id);
+    //         if (node.visited){
+    //             // console.log("node already visited, skipped.")
+    //         }
+    //         else{
+    //             let travelToNodeCost = nodeAndCost[1];
+
+    //             // console.log("node to be updated:", node);
+    //             // console.log("the cost to travel to this node:", travelToNodeCost);
+
+    //             // If connected node's g is undefined, set it
+
+    //             if (node.g == -1){
+    //                 // console.log("this node is new, setting g, f, previousNode")
+    //                 node.g = currentNode.g + travelToNodeCost;
+    //             }
+
+    //             // If connected Node's f is undefined, set it 
+    //             if (node.f == -1){
+    //                 node.f = node.g + node.heuristic;
+    //             }
+    //             // if connected node has no previous node, then set it
+    //             if (node.previousNode == -1){
+    //                 node.previousNode = currentNode.id;
+    //             }
+
+    //             // If the connected node's f value is higher than new g value, replace higher value with smaller
+
+    //             if ((currentNodeG + travelToNodeCost + node.heuristic) < node.f){
+    //                 console.log("this node's previous f value is higher than current, so update it.");
+    //                 console.log("-=-= previous:");
+    //                 console.log("node.g = ",node.g);
+    //                 console.log("node.f = ",node.f);
+    //                 node.g = travelToNodeCost + currentNodeG;
+    //                 node.f = node.g + node.heuristic;
+    //                 node.previousNode = currentNode.id;
+    //                 console.log("-=-= after:");
+    //                 console.log("node.g = ",node.g);
+    //                 console.log("node.f = ",node.f);
+    //             }
+    //         }
+            
+
+    //     });
+    //     // Set this node to visited!
+    //     // console.log("set visited to true!");
+    //     currentNode.visited = true;
+
+    // }
+
+
+    // costOfPath(firstNode, secondNode){
+    //     let firstDistanceX = firstNode.x;
+    //     let firstDistanceY = firstNode.y;
+    //     let secondDistanceX = secondNode.x;
+    //     let secondDistanceY = secondNode.y;
+
+    //     let distanceX = secondDistanceX - firstDistanceX;
+    //     let distanceY = secondDistanceY - firstDistanceY;
+
+    //     let distance = Math.sqrt((distanceX ** 2) + (distanceY ** 2));
+
+    //     return distance;
+
+    // }
 }
 
 class Node{
@@ -326,44 +654,61 @@ class Node{
         this.x = x;
         this.y = y;
 
+
         this.isItStart = isItStart;
         this.isItEnd = isItEnd; 
-        this.visited = false;
 
         this.defaultColor = YELLOW;
-        if (this.isItStart){
-            // console.log("SET THE START");
-            this.defaultColor = GREEN;
-        }
-        if (this.isItEnd){
-            this.defaultColor = RED;
-        }
+        if (this.isItStart){this.defaultColor = GREEN;}
+        if (this.isItEnd){this.defaultColor = RED;}
         this.activeColor = this.defaultColor;
-
         this.selectedColor = PURPLE;
-
         this.hoverColor = BLUE;
+        this.finalLineColor = BLUE;
 
         this.isItHovered = false;
         this.isItSelected = false;
 
         this.partOfFinalLine = false;
-        this.finalLineColor = BLUE;
 
+
+        this.visited = false;
+        this.selected = false;
+        this.checked = false;
         // g is the cost from the start. (-1 means not set)
-        this.g = -1;
+        this.g = null;
         // heuristic is the approximate added cost depending on distance from end
-        this.heuristic = 0;
+        this.heuristic = null;
         // f = g + h (-1 means not set)
-        this.f = -1;
+        this.f = null;
         // previousNode is the prior node connection (-1 means not set)
-        this.previousNode = -1;
+        this.previousNode = null;
 
         // E.G. [(2, 5), (3, 10), (7, 3)]
         // [nodeID, CostToTravel]
         // Travel to node 2 for cost: 5
         this.connectedPathId = [];
 
+    }
+
+    updateValues(previousNode, distanceFromPrevious){
+
+        if (this.checked){
+            let newG = previousNode.g + distanceFromPrevious;
+            let newF = newG + this.heuristic;
+            if (newF < this.f){
+                this.g = newG;
+                this.f = newF;
+                this.previousNode = previousNode.id;
+            }
+        }
+
+        if (!this.checked){
+            this.g = previousNode.g + distanceFromPrevious;
+            this.f = this.heuristic + this.g;
+            this.previousNode = previousNode.id;
+            this.checked = true;
+        }
     }
 
     draw(){
@@ -457,7 +802,8 @@ class InfoBox{
         this.write();
     }
     write(){
-        writeText(this.text, this.textSize, this.styleId, false, this.x + (this.width / 2), this.y + (this.height / 2) + (this.textSize / 2), BLACK, this.width);
+        writeText(this.text, this.textSize, this.styleId, false, this.x + (this.width / 2), this.y + (this.height / 2) +
+         (this.textSize / 2), BLACK, this.width);
     }
 
 
@@ -538,8 +884,8 @@ class Editing{
         // let removeTempNode = true;
 
         if (click){
-            createdMap.push(tempNode);
-            testGame.updateNodeList();
+            testGame.addNode(tempNode);
+            // testGame.updateNodeList();
             
         }
         console.log("ended adding node");
@@ -564,25 +910,7 @@ class Editing{
             if (click){
                 // DELETE NODE
                 let deleteNode = this.hoveringNode;
-                createdMap.forEach((node) => {
-
-                    // if the node is ID is in connectedPathId of any node, remove the ID from connectedPathId
-                    let index = node.connectedPathId.indexOf(deleteNode.id);
-                    if (index != -1){
-                        node.connectedPathId.splice(index, 1);
-                    }
-
-                });
-                let index = createdMap.indexOf(deleteNode);
-                createdMap.splice(index, 1);
-
-                console.log("CLICKED ON NODE");
-                testGame.updateNodeList();
-                // this.holdingNode = this.hoveringNode;
-                // this.holdingNode.isItSelected = true;
-                // this.holdingNode.isItHovered = false;
-                // this.hoveringNode = -1;
-                
+                testGame.removeNode(deleteNode);
             }
         }
         // IF NOT HOVERING OVER A NODE
@@ -592,8 +920,6 @@ class Editing{
             }
             this.hoveringNode = -1;
         }
-
-
     }
 
 
@@ -799,7 +1125,7 @@ class Editing{
 
         this.mousePosX = mouseHoverPos[0];
         this.mousePosY = mouseHoverPos[1];
-        createdMap.forEach((node) =>{
+        testGame.nodeList.forEach((node) =>{
             let nodeX = gridCordToPixelCord(node.x);
             let nodeY = gridCordToPixelCord(node.y);
 
@@ -865,7 +1191,7 @@ class Screen{
 
         this.drawBackgroundObjectList = [];
 
-        createdMap.forEach((node) => {
+        testGame.nodeList.forEach((node) => {
 
             this.addBackgroundObject(node);
 
@@ -986,7 +1312,8 @@ class Button{
 
         drawBox(this.x, this.y, this.width, this.height, this.activeBoxColor);
         let textSize = 30;
-        writeText(this.text, textSize, 0, true, this.x + (this.width / 2), this.y + (this.height / 2) + (textSize / 2), this.activeTextColor ,this.width * 0.95);
+        writeText(this.text, textSize, 0, true, this.x + (this.width / 2), this.y + (this.height / 2) + (textSize / 2), this.activeTextColor 
+        ,this.width * 0.95);
 
     }
 
@@ -1211,27 +1538,24 @@ function distanceBetweenPoints(point1, point2){
 
 function colorFinalPath(){
     // IF COMPLETED THE SEARCH
-    nextNode = testGame.nextNodeToCheck();
     let finalRouteNodes = [];
-    if (nextNode.id == idOfEndNode()){
+    if (testGame.isSimulationComplete){
         // GET A LIST OF ALL NODE ID IN FINAL LINE
-        currentID = idOfEndNode();
+        currentID = testGame.getEndNode().id;
 
-        while (currentID != 0){
+        while (currentID != null){
             finalRouteNodes.push(currentID);
-            previousNodeID = idToNode(currentID).previousNode
-            previousNode = idToNode(previousNodeID)
-            currentID = previousNode.id;
+            previousNodeID = testGame.getNodeFromId(currentID).previousNode;
+            currentID = previousNodeID;
         }
-        finalRouteNodes.push(currentID);
-        // console.log(finalRouteNodes);
+        finalRouteNodes.forEach((id) => {
+            node = testGame.getNodeFromId(id);
+            node.partOfFinalLine = true;
+        });
+        console.log("finalRouteNodes: ", finalRouteNodes);
     }
-
-    finalRouteNodes.forEach((id) => {
-
-        node = idToNode(id);
-        node.partOfFinalLine = true;
-    });
+    
+    
 }
 
 function getRandomInt(min, max) {
@@ -1243,7 +1567,7 @@ function getRandomInt(min, max) {
 function getNextSmallestIdNode(){
     let idList = [];
 
-    createdMap.forEach((node) => {
+    testGame.nodeList.forEach((node) => {
         idList.push(node.id);
     });
     let nextSmallestNumFound = false;
@@ -1279,52 +1603,34 @@ function clickTutorialBtn(){
 }
 
 function clickStepBtn(){
-
-    // console.log(testGame);
     
-    testGame.updateAllHeuristic();
-
-    nextNode = testGame.nextNodeToCheck();
-    // console.log("THE NEXT NODE -=-=-=-=-=-=-=-= :",nextNode);
-
-    if (isAlgorithmComplete() == false){
-        testGame.updateConnectedNodes(nextNode);
-        updateNextNodeBoxText();
-    }
-}
-
-function isAlgorithmComplete(){
-    nextNode = testGame.nextNodeToCheck();
-    if (nextNode == null){
-        return false;
-    }
-    if ((nextNode == false) || (nextNode.id == idOfEndNode())){
-        return true;
-    }
-    return false;
+    testGame.runNextNode();
+    
 }
 
 
 function getFinalRoute(){
-    if (isAlgorithmComplete()){
+    if (testGame.isMapComplete){
 
         let endNode = idToNode(idOfEndNode());
         let startNode = idToNode(idOfStartNode());
 
-        let currentNode = endNode;
+        // if the program completed
+        if (endNode.checked){
+            let currentNode = endNode;
+            let currentRoute = [];
 
-        let currentRoute = [];
+            while (currentNode.id != startNode.id){
 
+                currentRoute.push(currentNode.id);
+                currentNode = idToNode(currentNode.previousNode);
 
-        while (currentNode.id != startNode.id){
-
+            }
             currentRoute.push(currentNode.id);
-            currentNode = idToNode(currentNode.previousNode);
-
+            console.log("final route:", currentRoute);
+            return currentRoute;
         }
-        currentRoute.push(currentNode.id);
-        console.log("final route:", currentRoute);
-        return currentRoute;
+        return null;
 
     }
 }
@@ -1332,26 +1638,20 @@ function getFinalRoute(){
 
 function updateNextNodeBoxText(){
     
-    nextNode = testGame.nextNodeToCheck();
+    nextNode = testGame.getNextNode();
     // console.log(nextNode);
-    
-    if (isAlgorithmComplete()){
+    if (nextNode == null){
         nextNodeBox.text = "Next Node: COMPLETE";
         getFinalRoute();
-    }else{
-        if (nextNode == null){
-            nextNodeBox.text = "Next Node: COMPLETE";
-        }
-        else{
-            nextNodeBox.text = "Next Node:" + nextNode.id;
-        }
     }
-
+    else{
+        nextNodeBox.text = "Next Node:" + nextNode.id;
+    }
 }
 
 function idOfStartNode(){
     let id = -1;
-    createdMap.forEach((node) => {
+    testGame.nodeList.forEach((node) => {
         if (node.isItStart){
             id = node.id;
         }
@@ -1362,7 +1662,7 @@ function idOfStartNode(){
 
 function idOfEndNode(){
     let id = -1;
-    createdMap.forEach((node) => {
+    testGame.nodeList.forEach((node) => {
         if (node.isItEnd){
             id = node.id;
         }
@@ -1373,7 +1673,7 @@ function idOfEndNode(){
 
 function idToNode(id){
     let nodeWithTheId = -1;
-    createdMap.forEach((node) => {
+    testGame.nodeList.forEach((node) => {
         if (node.id == id){
             nodeWithTheId = node;
         }
@@ -1387,9 +1687,9 @@ function clickMapLogBtn(){
 
     // GET LAST NODE
 
-    console.log(createdMap);
+    console.log(testGame.nodeList);
     let currentStr = "[";
-    createdMap.forEach((obj) => {
+    testGame.nodeList.forEach((obj) => {
 
         if (obj.isItStart){
             currentStr += "[" + obj.x + ", " + obj.y + ", [";
@@ -1420,51 +1720,19 @@ function clickMapLogBtn(){
 }
 
 function clickResetMapBtn(){
-    createdMap.forEach((node) => {
-        node.g = -1;
-        node.f = -1;
-        node.previousNode = -1;
+    testGame.nodeList.forEach((node) => {
+        node.g = null;
+        node.f = null;
+        node.previousNode = null;
         node.visited = false;
+        node.checked = false;
         node.partOfFinalLine = false;
-        if (node.id == 0){
-            visited = true;
-        }
+        // if (node.id == 0){
+        //     visited = false;
+        // }
     });
+    testGame.isSimulationComplete = false;
     updateNextNodeBoxText();
-}
-
-function mapToCreatedMap(map, createdMap){
-    for (let i=0; i< map.length; i++){
-
-        let gridX = map[i][0];
-        let gridY = map[i][1];
-
-        let isItStartOrEnd = map[i][3];
-
-        let start = false;
-        let end = false;
-
-        if (isItStartOrEnd == 0){
-            start = true;
-        }
-        if (isItStartOrEnd == 1){
-            end = true;
-        }
-        
-        newNode = new Node(i, gridX, gridY, start, end);
-        if (map[i][2]){
-            newNode.connectedPathId = map[i][2];
-        }
-        else{
-            newNode.connectedPathId = [];
-        }
-    
-        createdMap.push(newNode);
-    
-        playScreen.addBackgroundObject(newNode);
-    
-    }
-
 }
 
 function enableEditingBtnFunc(){
@@ -1601,7 +1869,7 @@ function addNodeBtnFunc(){
 // IF "startOrEndOrDefault" == 1 then start node
 // IF "startOrEndOrDefault" == 2 then end node
 
-function placeRandomNode(minimumDistance, minGridX, maxGridX, minGridY, maxGridY, startOrEndOrDefault){
+function placeRandomNode(minimumDistance, minGridX, maxGridX, minGridY, maxGridY, startOrEndOrDefault, attemptsBeforeGivingUpMinimumDistance){
 
     let nodeType = "";
 
@@ -1625,16 +1893,22 @@ function placeRandomNode(minimumDistance, minGridX, maxGridX, minGridY, maxGridY
     // I will try placing node 100 times, if it doesn't place one time (because the minimumDistance is too high)
     // THEN i will reduce the minimumDistance by 1 
     // AKA Place node 100 times, if failed, just place it closer than minimum distance
-    let attemptNumber = 0;    
-
+    let attemptNumber = 1;
     while (isNewNodeReady == false){
+        // console.log("attempt number:", attemptNumber);
         let xPos = getRandomInt(minGridX, maxGridX);
         let yPos = getRandomInt(minGridY, maxGridY);
+        // console.log("random nums:");
+        // console.log(xPos);
+        // console.log(yPos);
 
         let nodeReady = true;
-        createdMap.forEach((node) => {
+        testGame.nodeList.forEach((node) => {
+            // console.log("checking distance from: ", node.id);
             distanceBetweenNodeAndNewNode = distanceBetweenPoints([node.x, node.y], [xPos, yPos]);
-            if (distanceBetweenNodeAndNewNode < (minimumDistanceFromNode - (attemptNumber / 100))){
+            // console.log("removed distance: " + (minimumDistanceFromNode - (attemptNumber / attemptsBeforeGivingUpMinimumDistance)))
+            if (distanceBetweenNodeAndNewNode < (minimumDistanceFromNode - (attemptNumber / attemptsBeforeGivingUpMinimumDistance))){
+                // console.log("failed");
                 nodeReady = false;
             }
         });
@@ -1663,19 +1937,16 @@ function placeRandomNode(minimumDistance, minGridX, maxGridX, minGridY, maxGridY
         randNode = new Node(id, newNodeX, newNodeY, false, false);
     }
     
-
-    createdMap.push(randNode);
-    testGame.updateNodeList();
-
+    testGame.addNode(randNode);
 }
 
 function connectNodeToRandomNode(node){
     let listOfDefaultNode = [];
-    createdMap.forEach((node) => {
+    testGame.nodeList.forEach((node) => {
         if (!node.isItStart && !node.isItEnd){
             let numOfConnectionsOut = node.connectedPathId.length;
             let numOfConnectsIn = 0;
-            createdMap.forEach((node2) => {
+            testGame.nodeList.forEach((node2) => {
 
                 // if node
                 if (node2.connectedPathId.indexOf(node.id) != -1){
@@ -1718,9 +1989,9 @@ function closestNodeNotInList(nodeId, listOfIdAndDistance){
 
     let currentClosestNodeId = -1;
     let currentClosestDistance = -1;
-    let originalNode = idToNode(nodeId);
+    let originalNode = testGame.getNodeFromId(nodeId);
 
-    createdMap.forEach((node) =>{
+    testGame.nodeList.forEach((node) =>{
         // console.log("doing node:", node.id);
         let nodeIsOriginalNode = false;
         if (originalNode.id == node.id){
@@ -1771,12 +2042,11 @@ function closestNodeNotInList(nodeId, listOfIdAndDistance){
 
 
 function getFinalListForClosestNode(){
-
     // for each node
     // run closestNodeNotInList to get the closest with distance
     // until returns [-1, -1]
     let currentFinalList = [];
-    createdMap.forEach((node) => {
+    testGame.nodeList.forEach((node) => {
 
         let currentAddition = [];
 
@@ -1788,23 +2058,13 @@ function getFinalListForClosestNode(){
     
         while(currentClosestNodeIdAndDistance[0] != -1){
     
-            // currentAddition[1].push(currentClosestNodeIdAndDistance);
-    
             currentClosestNodeIdAndDistance = closestNodeNotInList(node.id, currentAddition[1]);
             if (currentClosestNodeIdAndDistance[0] != -1){
                 currentAddition[1].push(currentClosestNodeIdAndDistance);
             }
-        
-    
         }
         currentFinalList.push(currentAddition);
-        
     });
-
-    // console.log(currentAddition);
-
-
-    // console.log(currentFinalList);
     return currentFinalList;
 
 }
@@ -1886,7 +2146,8 @@ function connectClosestLines(nodeId, closestConnectionList, numOfConnection){
 //   - if the connected node is "end node" then add this to a global list
 
 // 2. determine the distance each route travelled, order in terms of fastest to slowest
-// 3. Get x number of routes (randomly) with atleast half of the number of nodes on the map (making sure all nodes have atleast a single connection, if not, add a route with it)
+// 3. Get x number of routes (randomly) with atleast half of the number of nodes on the
+//           map (making sure all nodes have atleast a single connection, if not, add a route with it)
 // 4. apply route connections to the final map.
 // 5. complete
 
@@ -1917,9 +2178,9 @@ function getAllCombinations(startNodeId, endNodeId, currentNodeIdTravelledList, 
         else{
             // console.log("route not finished");
             let runRecursionOnList = [];
-            for(i = 0; i < createdMap.length; i++){
+            for(i = 0; i < testGame.nodeList.length; i++){
                 // console.log(i);
-                node = createdMap[i];
+                node = testGame.nodeList[i];
                 // console.log("currently on node:" ,node.id);
                 // is this not node in the list? then start loop with this new one it,
                 if (!currentNodeIdTravelledList.includes(node.id)){
@@ -2008,22 +2269,19 @@ function addConnectionToMap(firstId, secondId){
 
 function randomNodeBtnFunc(){
     // REMOVE ALL NODES
-
-    createMapWithMinimumOptimalRoute(4);
+    createMapWithMinimumOptimalRoute(6);
 
 }
 
 function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
+    testGame.isMapComplete = false;
+    testGame.removeAllNode();
 
-
-    createdMap = [];
-    testGame.updateNodeList();
-
-    placeRandomNode(10, 5, 10, 40, 45, 1);
-    placeRandomNode(10, 40, 45, 10, 15, 2);
-    placeRandomNode(10, 0, 48, 10, 48, 0);
-    placeRandomNode(10, 0, 48, 10, 48, 0);
-    testGame.updateNodeList();
+    placeRandomNode(10, 5, 10, 40, 45, 1, 100);
+    placeRandomNode(10, 40, 45, 10, 15, 2, 100);
+    placeRandomNode(10, 2, 48, 10, 48, 0, 100);
+    placeRandomNode(10, 2, 48, 10, 48, 0, 100);
+    testGame.isMapComplete = true;
     closestConnectionList = getFinalListForClosestNode();
     console.log(closestConnectionList);
     orderToConnectLine = getOrderForFinal(closestConnectionList);
@@ -2031,30 +2289,30 @@ function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
     orderToConnectLine.forEach((id) =>{
         connectClosestLines(id, closestConnectionList, 2);
     });
-
     let doneMaking = false;
     let counter = 0;
+
     while (!doneMaking){
-        while (isAlgorithmComplete() == false){
+        while (!testGame.isSimulationComplete){
             clickStepBtn();
         }
+        
         if (getFinalRoute().length >= minimumNumberOfNodeInOptimalRoute){
             doneMaking = true;
             clickResetMapBtn();
         }
         else{
-            createdMap = [];
-            testGame.updateNodeList();
+            testGame.isMapComplete = false;
+            testGame.removeAllNode();
 
-            placeRandomNode(10, 5, 10, 40, 45, 1);
-            placeRandomNode(10, 40, 45, 10, 15, 2);
-            placeRandomNode(10, 0, 48, 10, 48, 0);
-            for(i=0;i<counter/10;i++){
-                placeRandomNode(10, 0, 48, 10, 48, 0);
-                console.log("i: ", i);
+            placeRandomNode(10, 5, 10, 22, 27, 1, 100);
+            placeRandomNode(10, 40, 45, 22, 27, 2, 100);
+            // placeRandomNode(10, 2, 48, 10, 48, 0, 100);
+            for(i=0;i<(counter/10 + minimumNumberOfNodeInOptimalRoute);i++){
+                placeRandomNode(10, 2, 48, 10, 48, 0, 100);
+                // console.log("i: ", i);
             }
-            
-            testGame.updateNodeList();
+            testGame.isMapComplete = true;
             closestConnectionList = getFinalListForClosestNode();
             console.log(closestConnectionList);
             orderToConnectLine = getOrderForFinal(closestConnectionList);
@@ -2139,64 +2397,13 @@ function mouseHoverPosInCanvas()
 // -=-=-=-=-=-=-=-=- GAME OBJECT -=-=-=-=-=-=-=-=-
 testGame = new Game();
 
-// let map = [[5, 35, [1, 2, 3]], 
-//             [7, 13, [3, 5]], 
-//             [10, 45, [6]], 
-//             [15, 32, [7]], 
-//             [32, 15, [10]], 
-//             [20, 15, [4]], 
-//             [37, 48, [8, 9]], 
-//             [25, 30, [4, 8]], 
-//             [39, 30, [9]], 
-//             [45, 45, [10]],
-//             [47, 7]];
 
-
-
-
-
-
-
-
-// let map = [
-//     [5, 35, []], 
-//     [5, 8, [0,3,5]],
-//     [10, 45, [0, 6]],
-//     [15, 32, [0, 7]],
-//     [31, 7, [10]],
-//     [19, 7, [4]],
-//     [37, 48, [8,9]],
-//     [25, 30, [4,8]],
-//     [39, 30, [9]],
-//     [45, 45, [10]]
-//     ,[47, 7, []]];
-
-// index 1: xPos (from 1-50)
-// index 2: yPos (from 1-50)
-// index 3: connected Nodes list of indexes (index in the map)
-// index 4: 0 = startNode, 1 = endNode
-
-// let map = [
-//     [5, 35, [], 0],
-//     [4, 19, [0,3,5]],
-//     [10, 45, [0,6]],
-//     [15, 32, [0,7]],
-//     [36, 22, [10]],
-//     [13, 18, [4]],
-//     [37, 48, [8,9]],
-//     [25, 30, [4,8]],
-//     [48, 30, [9]],
-//     [33, 37, [10]],
-//     [44, 10, [], 1]
-//                 ];
-
-
-
-// let map = [[5, 35, [], 0],[4, 19, [0,3,5]],[10, 45, [0,6]],[15, 32, [0,7]],[25, 11, [10]],[13, 18, [4]],[37, 48, [8,9]],[25, 30, [4,8]],[48, 30, [9]],[33, 37, [10]],[44, 10, [], 1]];
-// let map = [[5, 35, [], 0],[4, 19, []],[10, 45, []],[15, 32, []],[36, 22, []],[13, 18, []],[37, 48, []],[25, 30, []],[48, 30, []],[33, 37, []],[44, 10, [], 1]];
-let map = [[6, 45, [], 0],[42, 10, [], 1],[4, 32, []],[9, 35, []],[22, 33, []],[35, 38, []],[16, 20, []],[5, 18, []],[9, 27, []],[21, 15, []],[9, 10, []],[33, 23, []],[40, 32, []],[32, 14, []],[47, 16, []]];
-
-let createdMap = [];
+let map = [[5, 35, [], 0],[4, 19, [0,3,5]],[10, 45, [0,6]],[15, 32, [0,7]],[25, 11, [10]],[13, 18, [4]],
+             [37, 48, [8,9]],[25, 30, [4,8]],[48, 30, [9]],[33, 37, [10]],[44, 10, [], 1]];
+// let map = [[5, 35, [], 0],[4, 19, []],[10, 45, []],[15, 32, []],[36, 22, []],[13, 18, []],[37, 48, []],
+//              [25, 30, []],[48, 30, []],[33, 37, []],[44, 10, [], 1]];
+// let map = [[6, 45, [2,3,4,5], 0],[42, 10, [], 1],[4, 32, []],[9, 35, []],[22, 33, []],[35, 38, []],[16, 20, []],
+// [5, 18, []],[9, 27, []],[21, 15, []],[9, 10, []],[33, 23, []],[40, 32, []],[32, 14, []],[47, 16, []]];
 
 
 
@@ -2255,36 +2462,7 @@ playScreen.addButton(resetMapBtn);
 playScreen.addForegroundObject(nextNodeBox);
 playScreen.addButton(enableEditingBtn);
 
-
-mapToCreatedMap(map, createdMap);
-testGame.updateNodeList();
-
-closestConnectionList = getFinalListForClosestNode();
-    console.log(closestConnectionList);
-    orderToConnectLine = getOrderForFinal(closestConnectionList);
-    console.log("order:", orderToConnectLine);
-    orderToConnectLine.forEach((id) =>{
-        connectClosestLines(id, closestConnectionList, 1);
-    });
-
-
-// console.log(createdMap);
-// getAllCombinations(0, 1, [], 4);
-// console.log("final map:");
-// console.log(finalRoutes);
-
-// calculateRouteDistance(finalRoutes);
-// console.log(finalRoutes);
-
-// bubbleSortRouteDistance(finalRoutes);
-// console.log(finalRoutes);
-
-
-// for(i=0;i<30;i++){
-//     if (finalRoutes[i].length == 5){
-//         addConnectionToMap(finalRoutes[i][1], finalRoutes[i][2]);
-//     }
-// }
+testGame.setMap(map);
 
 // -=-=-=-=-=-=-=-=- EDITING SETUP -=-=-=-=-=-=-=-=-
 
@@ -2300,7 +2478,7 @@ screenList = [firstScreen, secondScreen, playScreen];
 // ---------------------------------------------------------------------------------------------------------------------------------
 
 
-
+// console.log(testGame)
 function mainLoop(){
     // console.log("looping");
     // console.log(playScreen);
@@ -2323,6 +2501,7 @@ function mainLoop(){
     if (holding){
         // console.log("HOLDING");
     }
+    testGame.update();
     colorFinalPath();
 
     click = false;
