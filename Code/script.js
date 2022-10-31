@@ -3,6 +3,11 @@
 // ensure the g value is being correctly updated during each cycle
 // 
 
+// THIS IS THE NEWEST EDITION, LETS ASSUME I MADE THE NEW UPDATES (EVEN THOUGH I HAVEN'T, THIS IS FOR TESTING!)
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
