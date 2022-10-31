@@ -133,53 +133,317 @@ const GRID_HEIGHT = 50;
 let offScreenCanvas = document.createElement('canvas');
 let offScreenCtx = offScreenCanvas.getContext('2d');
 
-class Player{
-    constructor(){
 
-        this.x = 300;
-        this.y = 200;
-        this.atNode;
+// HOW THE GAME WILL WORK:
+// USER SPAWNS IN AT STARTNODE
+// WHILE USER NOT AT END NODE:
+//      GET USER'S NEXT POSSIBLE NODES
+//      IF USER PRESS A: MOVE TO NODE ON LEFT
+//      IF USER PRESS D: MOVE TO NODE ON RIGHT
+//      IF USER PRESS S: TRY MOVING BACK (IF NO PREVIOUS NODES THEN DO NOTHING (MAYBE PLAY A SOUND ERROR))
+//      IF USER PRESS W: GO TO THIS NODE 
+// 
+// 
+class Player{
+    constructor(spawnNode){
+        this.x = 0;
+        this.y = 0;
+        this.atNode = spawnNode;
         this.nextNode;
+        this.angle = 0;
         this.drewCar = false;
         this.carImage;
         this.width = 50;
         this.height = 20;
+        this.layerToDraw = "foreground";
+
+        this.updatedOptions = false;
+        this.options = [];
+        this.selectedOptionIndex;
+
+        this.animating = false;
+        this.percentageComplete = 0;
+
+        this.updateCord(this.atNode);
+
     }
 
-    draw(){
-        // console.log("drawing");
-        if (!this.drewCar){
-            // console.log("drew the car");
-            // let carImage = 
-            this.carImage = drawPngOnCurrentScreen("playerCar", this.x, this.y, this.width, this.height, 0, "foreground");
-            // console.log("the car:", this.carImage);
-            this.drewCar = true;
+    update(gameObj){
+        // console.log("doing");
+        if (this.updatedOptions == false){
+            this.getOptions(this.atNode, gameObj);
+            this.updatedOptions = true;
+            // this.closestNodeToAngle(angle);
+
+            // set the selectedOptionIndex to the closest angle node to the previous node
+
+            this.selectedOptionIndex = this.closestIndexNodeToAngle(this.angle);   
         }
-    }
-    moveCar(x, y){
-        // console.log(playScreen.drawForegroundObjectList);
-        this.x = x;
-        this.y = y;
-        if (this.drewCar){
-            this.deleteCarPng();
-        }
-        this.drewCar = false;
+
         this.draw();
+
+        if (this.animating == false){
+            
+            if (aDown){
+                // console.log("turn it left");
+                this.turnLeft();
+                // console.log("facing node id:", this.options[this.selectedOptionIndex][0].id);
+            }
+            if (dDown){
+                // console.log("turn it right");
+                this.turnRight();
+                // console.log(this.selectedOptionIndex);
+            }
+            if (wDown){
+                // console.log("go forward");
+                this.goForward();
+                // console.log(this.selectedOptionIndex);
+            }
+        }else{
+            let atNodeX = gridCordToPixelCord(this.atNode.x);
+            let atNodeY = gridCordToPixelCord(this.atNode.y);
+            let toNodeX = gridCordToPixelCord(this.nextNode.x);
+            let toNodeY = gridCordToPixelCord(this.nextNode.y);
+            // console.log("at node:", this.atNode);
+            // console.log("next node:", this.nextNode);
+            this.animateMovement([atNodeX, atNodeY], [toNodeX, toNodeY], 200);
+        }
+    }
+    
+    turnLeft(){
+        // turn true if do the turn
+        let turnLeftSuccess = false;
+        let currentAngle = this.options[this.selectedOptionIndex][1];
+        // console.log("currentAngle: ", currentAngle);
+        let tempSelectedOptionIndex = this.selectedOptionIndex - 1
+        if (tempSelectedOptionIndex == -1){
+            tempSelectedOptionIndex = this.options.length - 1
+        }
+        // get angle of closest node to left
+        let leftNodeAngle = this.options[tempSelectedOptionIndex][1];
+        // console.log("leftNodeAngle: ", leftNodeAngle);
+
+        if (leftNodeAngle > currentAngle){
+            let extraSpace = 180 - currentAngle
+            if (extraSpace > 0){
+                let overlapWithLeftNode = 360 - leftNodeAngle;
+                if (extraSpace > overlapWithLeftNode){
+                    turnLeftSuccess = true;
+                }
+            }
+        }
+        if (currentAngle > leftNodeAngle){
+            let differenceInAngle = currentAngle - leftNodeAngle;
+            if (differenceInAngle <= 180){
+                turnLeftSuccess = true;
+            }
+        }
+        
+        if (turnLeftSuccess){
+            this.selectedOptionIndex -= 1
+            if (this.selectedOptionIndex == -1){
+                this.selectedOptionIndex = this.options.length - 1
+            }
+            this.drewCar = false;
+        }
+
     }
 
-    deleteCarPng(){
+    turnRight(){
+        // turn true if do the turn
+        let turnRightSuccess = false;
+        let currentAngle = this.options[this.selectedOptionIndex][1];
+        // console.log("currentAngle: ", currentAngle);
+        let tempSelectedOptionIndex = this.selectedOptionIndex + 1
+        if (tempSelectedOptionIndex == this.options.length){
+            tempSelectedOptionIndex = 0;
+        }
+        // get angle of closest node to left
+        let rightNodeAngle = this.options[tempSelectedOptionIndex][1];
+        // console.log("rightNodeAngle: ", rightNodeAngle);
 
-        screenList.forEach((screen) => {
+        if (currentAngle > rightNodeAngle){
+            let extraSpace = 180 - (360 - currentAngle)
+            if (extraSpace > 0){
+                let overlapWithRightNode = rightNodeAngle;
+                if (extraSpace > overlapWithRightNode){
+                    turnRightSuccess = true;
+                }
+            }
+        }
+        if (rightNodeAngle > currentAngle){
+            let differenceInAngle = rightNodeAngle - currentAngle;
+            if (differenceInAngle <= 180){
+                turnRightSuccess = true;
+            }
+        }
+        
+        if (turnRightSuccess){
+            this.selectedOptionIndex += 1
+            if (this.selectedOptionIndex == this.options.length){
+                this.selectedOptionIndex = 0
+            }
+            this.drewCar = false;
+        }
+    }
+    goForward(){
+        this.nextNode = this.options[this.selectedOptionIndex][0];
+        this.animating = true;
+        // this.updatedOptions = false;
+    }
 
-            screen.removeForegroundObject(this.carImage);
+    // speed is the pixels to move per cycle
+    animateMovement(fromPosition, toPosition, speed){
 
+        let changeInX = toPosition[0] - fromPosition[0];
+        let changeInY = toPosition[1] - fromPosition[1];
+
+        // console.log("changeInX: ", changeInX);
+        // console.log("changeInY:", changeInY);
+        
+        let totalDistance = distanceBetweenPoints(fromPosition, toPosition);
+        // console.log("totalDistance:", totalDistance);
+        let percentageIncrease = speed/totalDistance;
+        // console.log("percentageIncrease:", percentageIncrease);
+        let newPercentage = this.percentageComplete + percentageIncrease;
+
+        // console.log("newPercentage:", newPercentage);
+
+        let newX = ((newPercentage/100) * changeInX) + fromPosition[0];
+
+        // console.log("newX:", newX);
+
+        let newY = ((newPercentage/100) * changeInY) + fromPosition[1];
+
+        // console.log("newY:", newY);
+
+        this.percentageComplete = newPercentage;
+        
+        this.x = newX;
+        this.y = newY;
+        this.drewCar = false;
+
+        if (this.percentageComplete > 100){
+            this.animating = false;
+            this.atNode = this.nextNode;
+            this.updateCord(this.atNode);
+            this.updatedOptions = false;
+            this.percentageComplete = 0;
+        }
+
+    }
+
+    getOptions(node, gameObj){
+        let x = gridCordToPixelCord(node.x);
+        let y = gridCordToPixelCord(node.y);
+        let nodeAndAngleList = [];
+        let connectedNodeList = gameObj.getConnectedNodeList(node);
+        // find angle of every node
+        connectedNodeList.forEach((connectedNode) => {
+            let connectedNodeX = gridCordToPixelCord(connectedNode.x);
+            let connectedNodeY = gridCordToPixelCord(connectedNode.y);
+            let angle = findBearingBetweenPoints([x, y], [connectedNodeX, connectedNodeY]);
+            nodeAndAngleList.push([connectedNode, angle]);
+        });
+        
+        // BUBBLE SORT THE OPTIONS IN CORRECT ORDER
+
+        for(let i = 0; i < nodeAndAngleList.length;i++){
+
+            for(let j = 0; j < nodeAndAngleList.length-1-i;j++){
+                let leftAngle = nodeAndAngleList[j][1];
+                let rightAngle = nodeAndAngleList[j+1][1];
+                if (leftAngle > rightAngle){
+                    nodeAndAngleList = swap(nodeAndAngleList, j, j+1);
+                }
+            }
+        }
+
+        this.options = [];
+        nodeAndAngleList.forEach((nodeAndAngle) => {
+            this.options.push(nodeAndAngle);
         })
 
     }
 
+    closestIndexNodeToAngle(originalAngle){
 
+        // console.log("started checking closest index");
+        originalAngle += 90;
+        if (originalAngle >= 360){
+            originalAngle -= 360;
+        }
+        // console.log("original Angle:", originalAngle);
 
+        let closestNode = null;
+        let closestNodeAngle = 0;
+        let closestNodeIndex = 0;
 
+        this.options.forEach((nodeAndAngle, index) => {
+            
+            let node = nodeAndAngle[0];
+            let angle = nodeAndAngle[1];
+            let leftDifference = null;
+            let rightDifference = null;
+            if (originalAngle > angle){
+                leftDifference = originalAngle - angle
+                rightDifference = (360 - originalAngle) + angle;
+            }else{ // Angle > originalAngle
+                leftDifference = angle - originalAngle
+                rightDifference = (360 - angle) + originalAngle;
+            }
+            let smallestAngle = null;
+            if (leftDifference > rightDifference){
+                smallestAngle = rightDifference;
+            }else{
+                smallestAngle = leftDifference;
+            }
+            if (closestNode == null){
+                closestNode = node;
+                closestNodeAngle = smallestAngle;
+                closestNodeIndex = index;
+            }else{
+                if (smallestAngle < closestNodeAngle){
+                    closestNode = node;
+                    closestNodeAngle = smallestAngle;
+                    closestNodeIndex = index;
+                }
+            }
+        });
+        return closestNodeIndex;
+    }
+
+    draw(){
+        if (!this.drewCar){
+            this.angle = this.options[this.selectedOptionIndex][1];
+            this.angle -= 90;
+            if (this.angle < 0){
+                this.angle += 360;
+            }
+            let temporaryImage = drawPngOnCurrentScreen("playerCar.png", this.x, this.y, this.width, this.height, this.angle, this.layerToDraw);
+            this.deleteCarPng(this.carImage);
+            this.carImage = drawPngOnCurrentScreen("playerCar.png", this.x, this.y, this.width, this.height, this.angle, this.layerToDraw);
+            this.deleteCarPng(temporaryImage);
+            4
+            this.drewCar = true;
+        }
+    }
+
+    updateCord(node){
+        this.x = gridCordToPixelCord(node.x);
+        this.y = gridCordToPixelCord(node.y);
+    }
+
+    deleteCarPng(carImage){
+        screenList.forEach((screen) => {
+            if (this.layerToDraw == "foreground"){
+                screen.removeForegroundObject(carImage);
+            }
+            if (this.layerToDraw == "background"){
+                screen.removeBackgroundObject(carImage);
+            }
+        });
+    }
 }
 
 class MyImage{
@@ -192,44 +456,49 @@ class MyImage{
 
         this.imageWidth = imageWidth;
         this.imageHeight = imageHeight;
-
-        this.width = this.imageWidth * 2;
-        this.height = this.imageHeight * 2;
-
         this._rotated = false;
-        this.rotateInDegree = 45;
+        this.currentRotation = 30;
 
         this.offScreenCanvas = document.createElement('canvas');
         this.offScreenCtx = this.offScreenCanvas.getContext('2d');
 
-        this.offScreenCanvas.width = this.width;
-        this.offScreenCanvas.height = this.height;
+        this.offScreenCanvas.width = CANVAS_WIDTH;
+        this.offScreenCanvas.height = CANVAS_HEIGHT;
     }
 
     draw(){
-
-        this.offScreenCtx.translate(this.imageWidth, this.imageHeight);
-        this.offScreenCtx.drawImage(this.image, -(this.imageWidth / 2), -( this.imageHeight / 2), this.imageWidth, this.imageHeight);
-
+        this.offScreenCtx.fillStyle = RED;
+        // this.offScreenCtx.fillRect(this.x, this.y, this.imageWidth, this.imageHeight);
+        this.offScreenCtx.translate(this.x, this.y); 
         if (!this._rotated){
-            this.offScreenCtx.rotate((Math.PI / 180) * this.rotateInDegree);
+            this.offScreenCtx.rotate((Math.PI / 180) * this.currentRotation);
             this._rotated = true;
         }
-        this.offScreenCtx.translate(-this.imageWidth, -this.imageHeight);
-        ctx.drawImage(this.offScreenCanvas, this.x - (this.width / 2), this.y - (this.height /2), this.width, this.height);
-    }
-    rotate(degree){
-        this._rotated = false;
-        this.rotateInDegree = degree;
+        this.offScreenCtx.drawImage(this.image, -(this.imageWidth / 2), -( this.imageHeight / 2), this.imageWidth, this.imageHeight);
+
+        this.offScreenCtx.translate(-this.x, -this.y);
+        ctx.drawImage(this.offScreenCanvas, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
+    setRotation(degree){
+        this._rotated = false;
+        this.currentRotation = degree;
+    }
+
+    moveImage(x, y){
+        this.x = x;
+        this.y = y;
+        this.draw();
+    }
+
+    testRotation(){
+        this.offScreenCtx.drawImage(this.image, -(this.imageWidth / 2), -( this.imageHeight / 2), this.imageWidth, this.imageHeight);
+        ctx.drawImage(this.offScreenCanvas, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 }
 
-
 class Game{
-
     constructor(){
-
         // nodeList (List) -> A list of all nodes
         // heuristicMult (Integer) -> a multiplier to calculate heuristics
         // isMapComplete (Boolean) -> check if, when creating the map, is there a start and end node. if not, can't run this map
@@ -240,16 +509,14 @@ class Game{
         this.isSimulationComplete = false;
         this.isHeuristicCalculated = false;
 
-        this.roadPngList = [];
+        this.pngList = [];
+        this.resetGame = true;
 
-        this.resetRoads = true;
-        this.nodeToDrawRoadFor = [];
-        this.doneThisCycle = false;
+        this.playerPlaying = true;
+        this.playerCar;
+        this.finishLine;
+        this.startLight;
 
-        this.nodeCreatorDelayMax = 20;
-        this.createNodeIndex = 0;
-
-        this.nodeDelay = 0;
 
     }
 
@@ -260,41 +527,25 @@ class Game{
                 this.isSimulationComplete = true;
             }
 
-            if (this.resetRoads){
-                this.removeRoadPng();
+            if (this.resetGame){
+                this.removeAllPng();
+
+                this.createFinishLine();
+                this.createStartLight();
+                this.createCar();
                 this.nodeToDrawRoadFor = [];
                 this.nodeList.forEach((node) => {
-                    this.nodeToDrawRoadFor.push(node);
+                    node.connectedPathId.forEach((id) => {
+                        this.createRoad(node, id);
+                    });
                 });
-                this.resetRoads = false;
+                this.resetGame = false;
             }
 
-            // console.log("nodes to go:", this.nodeToDrawRoadFor);
-            if (this.nodeToDrawRoadFor.length != 0){
-                // draw first road
-                // console.log("node: ", this.nodeToDrawRoadFor);
-                if (this.nodeDelay == this.nodeCreatorDelayMax){
-                    let node = this.nodeToDrawRoadFor[0];
-                    console.log("node: ", node);
-                    let numOfRoads = node.connectedPathId.length;
-                    // console.log("numOfRoads: ", numOfRoads);
-                    if (this.createNodeIndex == numOfRoads){
-                        this.nodeToDrawRoadFor.splice(0, 1);
-                        this.createNodeIndex = 0;
-                        console.log("removed this node");
-                    }
-                    else{
-                        // console.log("connecting to id: ", node.connectedPathId[this.createNodeIndex]);
-                        this.createRoad(node, node.connectedPathId[this.createNodeIndex]);
-                        this.createNodeIndex += 1;
-                    }
-                    this.nodeDelay = 0;
-                }else{
-                    this.nodeDelay += 1;
-                }
-            }
-            else{
-                // console.log("COMPLETED THE STUFF");
+            if (this.playerPlaying){
+
+                this.playerCar.update(this);
+
             }
         }
     }
@@ -303,80 +554,89 @@ class Game{
         let connectedNode = idToNode(connectedNodeID);
         let roadList = drawRoadLine([gridCordToPixelCord(node.x), gridCordToPixelCord(node.y)], [gridCordToPixelCord(connectedNode.x), gridCordToPixelCord(connectedNode.y)], 20, 35);
         roadList.forEach((road) => {
-            this.roadPngList.push(road);
+            this.pngList.push(road);
         });
     }
 
-    // createRoadPngForNode(node){
-    //     node.connectedPathId.forEach((Id) =>{
-    //         let connectedNode = idToNode(Id);
-    //         let roadList = drawRoadLine([gridCordToPixelCord(node.x), gridCordToPixelCord(node.y)], [gridCordToPixelCord(connectedNode.x), gridCordToPixelCord(connectedNode.y)], 20, 30);
-    //         console.log("drew the stuff");
-    //         roadList.forEach((road) => {
-    //             this.roadPngList.push(road);
-    //         });
-    //     });
-    // }
-
-    // createRoadPng(){
-    //     if (!this.needToUpdateRoadPng){
-    //         return
-    //     }
-    //     if (this.roadPngList.length != 0){
-    //         this.removeRoadPng();
-    //     }
-
-    //     this.nodeList.forEach((node) => {
-    //         console.log("drawing");
-    //         // if (node.id == 1){
-    //             console.log("correct one");
-                // node.connectedPathId.forEach((Id) =>{
-                //     let connectedNode = idToNode(Id);
-                //     let roadList = drawRoadLine([gridCordToPixelCord(node.x), gridCordToPixelCord(node.y)], [gridCordToPixelCord(connectedNode.x), gridCordToPixelCord(connectedNode.y)], 20, 30);
-                //     console.log("drew the stuff");
-                //     roadList.forEach((road) => {
-                //         this.roadPngList.push(road);
-                //     });
-                // });
-    //         // }
-    //         // node.connectedPathId.forEach((Id) =>{
-    //         //     let connectedNode = idToNode(Id);
-    //         //     let roadList = drawRoadLine([gridCordToPixelCord(node.x), gridCordToPixelCord(node.y)], [gridCordToPixelCord(connectedNode.x), gridCordToPixelCord(connectedNode.y)], 20, 30);
-                
-    //         //     roadList.forEach((road) => {
-    //         //         this.roadPngList.push(road);
-    //         //     });
-    //         // });
-    //     });
-    //     this.needToUpdateRoadPng = false;
-
-    // }
-
-    removeRoadPng(){
-
-        // console.log("1:", this.roadPngList);
-        // console.log("2:", playScreen.drawBackgroundObjectList);
-        // console.log("3:", playScreen.drawForegroundObjectList);
-        while (this.roadPngList.length > 0){
+    removeAllPng(){
+        while (this.pngList.length > 0){
             screenList.forEach((screen) => {
                 if (screen.activeScreen){
                     // console.log("removing from screen", screen);
-                    screen.removeBackgroundObject(this.roadPngList[0]);
-                    this.roadPngList.splice(0, 1);
+                    screen.removeBackgroundObject(this.pngList[0]);
+                    this.pngList.splice(0, 1);
                 }
             });
         }
     }
+
+    removePng(pngObj, layer){
+        screenList.forEach((screen) => {
+            if (screen.activeScreen){
+                // console.log("removing from screen", screen);
+                if (layer == "foreground"){
+                    screen.removeForegroundObject(pngObj);
+                }
+                if (layer == "background"){
+                    screen.removeBackgroundObject(pngObj);
+                }
+                let index = this.pngList.indexOf(pngObj)
+                if (index != -1){
+                    this.pngList.splice(index, 1);
+                }
+            }
+        });
+    }
+
+    createFinishLine(){
+        let endNode = this.getEndNode();
+        if (this.finishLine == null){
+            this.finishLine = drawPngOnCurrentScreen("finishLine.png", gridCordToPixelCord(endNode.x) - 10, gridCordToPixelCord(endNode.y) - 40, 75, 75, 0, "foreground");
+        }
+        else{
+            this.removePng(this.finishLine, "foreground");
+            this.finishLine = drawPngOnCurrentScreen("finishLine.png", gridCordToPixelCord(endNode.x) - 10, gridCordToPixelCord(endNode.y) - 40, 75, 75, 0, "foreground");
+        }
+        this.pngList.push(this.finishLine);
+    }
+
+    createStartLight(){
+        let startNode = this.getStartNode();
+        if (this.startLight == null){
+            this.startLight = drawPngOnCurrentScreen("startLight.png", gridCordToPixelCord(startNode.x) + 10, gridCordToPixelCord(startNode.y) - 50, 175, 100, 0, "foreground");
+        }else{
+            this.removePng(this.startLight, "foreground");
+            this.startLight = drawPngOnCurrentScreen("startLight.png", gridCordToPixelCord(startNode.x) + 10, gridCordToPixelCord(startNode.y) - 50, 175, 100, 0, "foreground");
+        }
+        this.pngList.push(this.startLight);
+    }
+
+    createCar(){
+        let startNode = this.getStartNode();
+        if (this.playerCar == null){
+            this.playerCar = new Player(startNode);
+        }else{
+            this.playerCar.atNode = startNode;
+            this.playerCar.updateCord(this.playerCar.atNode);
+            this.playerCar.updatedOptions = false;
+            this.playerCar.drewCar = false;
+        }
+    }
+
+    deleteCar(){
+
+    }
+
 
     setMap(map){
 
         // reset nodeList
         this.nodeList = [];
 
-        // index 1: xPos (from 1-50)
-        // index 2: yPos (from 1-50)
-        // index 3: connected Nodes list of indexes (index in the map)
-        // index 4: 0 = startNode, 1 = endNode
+        // index 0: xPos (from 1-50)
+        // index 1: yPos (from 1-50)
+        // index 2: connected Nodes list of indexes (index in the map)
+        // index 3: 0 = startNode, 1 = endNode
         if (this.isMapValid(map)){
             this.isMapComplete = true;
 
@@ -398,6 +658,9 @@ class Game{
                 
                 let newNode = new Node(i, gridX, gridY, start, end);
                 if (map[i][2]){
+                    if (map[i][2].indexOf(i) != -1){
+                        map[i][2].splice(map[i][2].indexOf(i), 1);
+                    }
                     newNode.connectedPathId = map[i][2];
                 }
                 else{
@@ -558,7 +821,6 @@ class Game{
                 }
             }
         });
-        // console.log("got the list:", connectedNodeList);
         return connectedNodeList;
     }
 
@@ -651,15 +913,9 @@ class Game{
             node.visited = false;
             node.checked = false;
             node.partOfFinalLine = false;
-            // if (node.id == 0){
-            //     visited = false;
-            // }
         });
         testGame.isSimulationComplete = false;
     }
-
-    
-
 }
 
 class Node{
@@ -753,14 +1009,6 @@ class Node{
 
     drawConnectionLines(){
 
-        // this.connectedPathId.forEach((Id) =>{
-        //     let connectedNode = idToNode(Id);
-        //     if (!this.drewRoadPng){
-        //         drawRoadLine([gridCordToPixelCord(this.x), gridCordToPixelCord(this.y)], [gridCordToPixelCord(connectedNode.x), gridCordToPixelCord(connectedNode.y)], 20, 30);
-        //     }
-        // });
-        // this.drewRoadPng = true;
-
         this.connectedPathId.forEach((Id) => {
             
 
@@ -836,7 +1084,7 @@ class InfoBox{
 
 class Editing{
     
-    constructor(){
+    constructor(gameObj){
 
         this.editingEnabled = false;
         this.hoveringNode = -1;
@@ -845,6 +1093,7 @@ class Editing{
         this.mousePosX = 0;
         this.mousePosY = 0;
 
+        this.gameObj = gameObj;
 
         this.sameIteration = false;
 
@@ -884,20 +1133,19 @@ class Editing{
                 this.addNode();
             }
             // testGame.createRoadPng();
-
         }
         this.sameIteration = false;
         
     }
 
     addNode(){
-        console.log("started adding node");
+        // console.log("started adding node");
 
         let newHoveringNode = this.closestNodeWithinRange();
         this.mousePosToCordGrid();
 
 
-        console.log(this.mousePosX, this.mousePosY);
+        // console.log(this.mousePosX, this.mousePosY);
 
         let nextSmallest = getNextSmallestIdNode();
 
@@ -913,7 +1161,7 @@ class Editing{
             // testGame.updateNodeList();
             
         }
-        console.log("ended adding node");
+        // console.log("ended adding node");
     }
 
     deleteNode(){
@@ -936,6 +1184,7 @@ class Editing{
                 // DELETE NODE
                 let deleteNode = this.hoveringNode;
                 testGame.removeNode(deleteNode);
+                testGame.resetGame = true;
             }
         }
         // IF NOT HOVERING OVER A NODE
@@ -970,12 +1219,12 @@ class Editing{
                 
                 if (click){
                     this.sameIteration = true;
-                    console.log("CLICKED ON HOVERED NODE");
+                    // console.log("CLICKED ON HOVERED NODE");
                     this.holdingNode = this.hoveringNode;
                     this.holdingNode.isItSelected = true;
                     this.holdingNode.isItHovered = false;
                     this.hoveringNode = -1;
-                    
+                    testGame.resetGame = true;
                 }
 
             }
@@ -1010,7 +1259,7 @@ class Editing{
                 // CLICKED WHILE HOVERING NODE ON NEW NODE
                 if (click){
                     // this.sameIteration = true;
-                    console.log("CLICKED ON THE NEW HOVERED NODE");
+                    // console.log("CLICKED ON THE NEW HOVERED NODE");
 
                     // IS THERE A LINE FROM "this.holdingNode" and "this.hoveringNode"
 
@@ -1040,8 +1289,7 @@ class Editing{
                         this.holdingNode.connectedPathId.push(this.hoveringNode.id);
 
                     }
-
-
+                    testGame.resetGame = true;
                 }
 
             }
@@ -1064,8 +1312,6 @@ class Editing{
 
 
     leftClickMove(){
-
-        testGame.needToUpdateRoadPng = true;
 
         this.mousePosToCordGrid();
         
@@ -1114,6 +1360,7 @@ class Editing{
             if (click){
                 this.holdingNode.isItSelected = false;
                 this.holdingNode = -1;
+                testGame.resetGame = true;
             }
 
         }
@@ -1423,7 +1670,7 @@ class Button{
                 addNodeBtnFunc();
             }
             if (this.Id == 11){
-                randomNodeBtnFunc();
+                randomNodeBtnFunc(testGame);
             }
             // console.log("done checking all button");
         }
@@ -1447,11 +1694,6 @@ function drawBox(x, y, width, height, color){
     ctx.fillStyle = color;
     ctx.fillRect(x, y, width, height);
 }
-
-// function drawBox(x, y, width, height, color, ctx){
-//     ctx.fillStyle = color;
-//     ctx.fillRect(x, y, width, height);
-// }
 
 // 1000 px across
 // 1000 px down
@@ -1537,10 +1779,8 @@ function writeText(text, textSize, styleId, centered, x, y, color, maxWidth){
     // THERE WILL BE A COUPLE PRE-SET TEXT STYLES, CHOOSE WHICH STYLE WITH NUMBER
     if (styleId == 0)
     {
-        ctx.font = textSize.toString() + "px Arial";
-        
+        ctx.font = textSize.toString() + "px Arial";  
     } 
-
     ctx.fillStyle = color;
 
     if (centered){
@@ -1551,9 +1791,6 @@ function writeText(text, textSize, styleId, centered, x, y, color, maxWidth){
 }
 
 function gridCordToPixelCord(gridCord){
-
-    // 50 = 750
-    // 1 = 750/50
 
     return gridCord * (CANVAS_HEIGHT/50);
 }
@@ -1623,9 +1860,9 @@ function drawPngOnCurrentScreen(pngName, xCenter, yCenter, width, height, angle,
     let madePng = false;
     screenList.forEach((screen) => {
         if (screen.activeScreen && !madePng){
-            tempImg = new MyImage(pngName+ ".png", xCenter, yCenter, width, height);
-            tempImg.rotate(angle);
-            console.log("rotate:", angle);
+            tempImg = new MyImage(pngName, xCenter, yCenter, width, height);
+            tempImg.setRotation(angle);
+            // console.log("rotate:", angle);
             if (depth == "foreground"){
                 screen.addForegroundObject(tempImg);
             }
@@ -1642,16 +1879,29 @@ function drawPngOnCurrentScreen(pngName, xCenter, yCenter, width, height, angle,
 function drawRoadLine(fromPos, toPos, widthOfRoad, heightOfRoad){
     let changeInY = toPos[1] - fromPos[1];
     let changeInX = toPos[0] - fromPos[0];
+    angleDegree = findBearingBetweenPoints(fromPos, toPos);
+    let totalDistance = distanceBetweenPoints(fromPos, toPos);
+    numOfRoads = Math.floor(totalDistance / heightOfRoad) + 1;
+
+    returnRoadList = [];
+    for(i=0;i<numOfRoads;i++){
+        tempRoadPng = drawPngOnCurrentScreen("normalRoad.png", fromPos[0] + ((i + 0.5) * (changeInX/numOfRoads)), fromPos[1] + ((i+0.5) * (changeInY/numOfRoads)), widthOfRoad, heightOfRoad, angleDegree, "background");
+        returnRoadList.push(tempRoadPng);
+    }
+    return returnRoadList;
+}
+
+function findBearingBetweenPoints(fromPos, toPos){
+
+    let changeInY = toPos[1] - fromPos[1];
+    let changeInX = toPos[0] - fromPos[0];
+
+    // console.log(changeInX);
+    // console.log(changeInY);
     
     let angleRad = Math.atan((Math.abs(changeInX)/Math.abs(changeInY)));
-    console.log("angleRad:", angleRad);
-    // if (changeInY == 0){
-    //     angleRad = (Math.PI / 2);
-    // }
-    // if (changeInX == 0){
-    //     angleRad = 0;
-    // }
-    // Line going right
+    // console.log("degree before:", ((angleRad * 180)/Math.PI))
+    // console.log("angleRad:", angleRad);
     if (changeInX > 0){
         // Line going down
         if (changeInY > 0){
@@ -1661,34 +1911,43 @@ function drawRoadLine(fromPos, toPos, widthOfRoad, heightOfRoad){
         if (changeInY < 0){
             // angleRad = (Math.PI) - angleRad;
         }
+        if (changeInY == 0){
+            angleRad = 0.5 * Math.PI;
+        }
     }
     // Line going left
-    if (changeInY < 0){
+    if (changeInX < 0){
         // Line going down
-        if (changeInX > 0){
+        if (changeInY > 0){
+            // console.log("going left and down");
             angleRad = (Math.PI) + angleRad;
         }
         // Line going up
-        if (changeInX < 0){
+        if (changeInY < 0){
             angleRad = (2 * Math.PI) - angleRad;
         }
+        if (changeInY == 0){
+            angleRad = 1.5 * Math.PI;
+        }
     }
+    // Going straight up or down
+    if (changeInX == 0){
+        // Going straight down
+        if (changeInY > 0){
+            angleRad = Math.PI;
+        }
+        // going straight up
+        if (changeInY < 0){
+            angleRad = 0;
+        }
+    }
+    // console.log("degree after:", ((angleRad * 180)/Math.PI))
 
     let angleDegree = ((angleRad * 180)/Math.PI);
+    return angleDegree;
 
-    console.log("angleDegree: ", angleDegree);
-
-    let totalDistance = distanceBetweenPoints(fromPos, toPos);
-    
-    numOfRoads = Math.floor(totalDistance / heightOfRoad) + 1;
-
-    returnRoadList = [];
-    for(i=0;i<numOfRoads;i++){
-        tempRoadPng = drawPngOnCurrentScreen("normalRoad", fromPos[0] + ((i + 0.5) * (changeInX/numOfRoads)), fromPos[1] + ((i+0.5) * (changeInY/numOfRoads)), widthOfRoad, heightOfRoad, angleDegree, "background");
-        returnRoadList.push(tempRoadPng);
-    }
-    return returnRoadList;
 }
+
 
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -1704,7 +1963,6 @@ function clickFirstScreen(){
 function clickPlayBtn(){
     secondScreen.activeScreen = false;
     playScreen.activeScreen = true;
-    testGame.resetRoads = true;
     // testGame.createRoadPng();
     // playerObj.draw();
 }
@@ -1712,7 +1970,6 @@ function clickPlayBtn(){
 function clickStepBtn(){
     
     testGame.runNextNode();
-    testGame.resetRoads = true;
     // testGame.resetRoadPng();
     // playerObj.draw();
     
@@ -1737,11 +1994,9 @@ function getFinalRoute(){
 
             }
             currentRoute.push(currentNode.id);
-            console.log("final route:", currentRoute);
             return currentRoute;
         }
         else{
-            console.log("end node hasn't been reached ever");
             return null;
         }
         console.log("returning null from finalRoute");
@@ -1848,7 +2103,7 @@ function clickResetMapBtn(){
     });
     testGame.isSimulationComplete = false;
     updateNextNodeBoxText();
-    testGame.needToUpdateRoadPng = true;
+
 }
 
 function enableEditingBtnFunc(){
@@ -1885,6 +2140,7 @@ function enableEditingBtnFunc(){
 
         // Enable Editing
         editObj.editingEnabled = true;
+        testGame.resetGame = true;
     }
 
     // IF EDITING IS ON THEN ENABLE IT
@@ -1918,6 +2174,7 @@ function enableEditingBtnFunc(){
         playScreen.removeButton(randomNodeBtn);
 
         editObj.editingEnabled = false;
+        testGame.resetGame = true;
     }
 
 }
@@ -2332,33 +2589,11 @@ function calculateRouteDistance(routeList){
     }
 }
 
-function bubbleSortRouteDistance(routeListAfterDistance){
-
-    for(i=0;i<routeListAfterDistance.length;i++){
-        // console.log("doing");
-
-        for(j=0;j<routeListAfterDistance.length-1-i;j++){
-            // console.log("doing2");
-
-            
-            let leftDistance = routeListAfterDistance[j][routeListAfterDistance[j].length-1];
-            // console.log("leftDistance: ", leftDistance);
-            
-            let rightDistance = routeListAfterDistance[j+1][routeListAfterDistance[j+1].length-1];
-            // console.log("rightDistance: ", rightDistance);
-            if (leftDistance > rightDistance){
-                swap(routeListAfterDistance, j, j+1);
-                // console.log("swapped");
-            }
-
-        }
-    }
-}
-
 function swap(list, index1, index2){
     let temp = list[index1];
     list[index1] = list[index2];
     list[index2] = temp;
+    return list;
 }
 
 function addConnectionToMap(firstId, secondId){
@@ -2377,9 +2612,10 @@ function addConnectionToMap(firstId, secondId){
     }
 }
 
-function randomNodeBtnFunc(){
+function randomNodeBtnFunc(testGame){
     // REMOVE ALL NODES
     createMapWithMinimumOptimalRoute(5);
+    testGame.resetGame = true;
 }
 
 function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
@@ -2392,9 +2628,8 @@ function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
     placeRandomNode(10, 2, 48, 10, 48, 0, 100);
     testGame.isMapComplete = true;
     closestConnectionList = getFinalListForClosestNode();
-    console.log(closestConnectionList);
+    // console.log(closestConnectionList);
     orderToConnectLine = getOrderForFinal(closestConnectionList);
-    console.log("order:", orderToConnectLine);
     orderToConnectLine.forEach((id) =>{
         connectClosestLines(id, closestConnectionList, 2);
     });
@@ -2406,7 +2641,6 @@ function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
             clickStepBtn();
         }
         if (testGame.getEndNode().checked){
-            console.log("end node has been checked");
             if (getFinalRoute().length >= minimumNumberOfNodeInOptimalRoute){
                 doneMaking = true;
                 clickResetMapBtn();
@@ -2415,8 +2649,8 @@ function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
                 testGame.isMapComplete = false;
                 testGame.removeAllNode();
     
-                placeRandomNode(10, 5, 10, 22, 27, 1, 100);
-                placeRandomNode(10, 40, 45, 22, 27, 2, 100);
+                placeRandomNode(10, 5, 10, 40, 45, 1, 100);
+                placeRandomNode(10, 40, 45, 15, 15, 2, 100);
                 for(i=0;i<(counter/10 + minimumNumberOfNodeInOptimalRoute);i++){
                     placeRandomNode(10, 2, 48, 10, 48, 0, 5);
                 }
@@ -2436,6 +2670,19 @@ function createMapWithMinimumOptimalRoute(minimumNumberOfNodeInOptimalRoute){
     }
 
 }
+
+function getRotation(ctx) {
+    let t = ctx.getTransform();
+    let rad = Math.atan2(t.b, t.a);
+    if (rad < 0) { // angle is > Math.PI
+      rad += Math.PI * 2;
+    }
+    // 180 degree = pie rad
+    // 1 degree = pie/180 rad
+    let degree = rad * (180 / Math.PI);
+    // degree = ((rad*Math.PI) / 180);
+    return degree;
+  }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                      MOUSE REGISTER
@@ -2472,6 +2719,55 @@ document.body.onmouseup = function(){
 }
 
 
+var aHeld = false;
+var aDown = false;
+
+var dHeld = false;
+var dDown = false;
+
+var wHeld = false;
+var wDown = false;
+
+var sHeld = false;
+var sDown = false;
+
+document.addEventListener('keydown', function(event) {
+
+    if (event.key == "a" && !aHeld){
+        aHeld = true;
+        aDown = true;
+    }
+    if (event.key == "d" && !dHeld){
+        dHeld = true;
+        dDown = true;
+    }
+    if (event.key == "w" && !wHeld){
+        wHeld = true;
+        wDown = true;
+    }
+    if (event.key == "s" && !sHeld){
+        sHeld = true;
+        sDown = true;
+    }
+}, true);
+
+document.addEventListener('keyup', function(event) {
+    if (event.key == "a") {
+        aHeld = false;
+    }
+    if (event.key == "d") {
+        dHeld = false;
+    }
+    if (event.key == "w") {
+        wHeld = false;
+    }
+    if (event.key == "s") {
+        sHeld = false;
+    }
+
+}, true);
+
+
 // ASSUMING THAT THE CANVAS IS CENTERED ON THE PAGE (ITS IN DIRECT CENTER)
 // WHEN IMPLEMENTING ON tipucs.co.uk, NEED TO CHANGE THIS FUNCTION, THERES 2 OPTIONS:
 // OPTION 1: LINK TO ANOTHER PAGE WHICH HAS THE SIMULATION IN THE DIRECT CENTER
@@ -2495,6 +2791,8 @@ function mouseHoverPosInCanvas()
 
 }
 
+
+
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                      DECLARING VARIABLES
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -2503,6 +2801,9 @@ function mouseHoverPosInCanvas()
 // -=-=-=-=-=-=-=-=- GAME OBJECT -=-=-=-=-=-=-=-=-
 testGame = new Game();
 
+
+// let map = [[5, 35, [], 0],[4, 19, [0]],[37, 48, []],[26, 32, [10,9,8,5,4,3,2,12,11,7,6]],[44, 10, [], 1],[23, 44, []],[29, 44, []],[42, 35, []],[42, 28, []],[30, 17, []],[22, 17, []],[10, 28, []],[9, 36, [0]]];
+// let map = [[5, 35, [], 0],[4, 19, [0,3,5]],[10, 45, [0,6]],[15, 32, [0,7]],[25, 11, [10]],[13, 18, [4]],[37, 48, [8,9]],[26, 32, [4,8,5,2,9,10,11]],[48, 30, [9]],[33, 37, [10]],[44, 10, [], 1],[28, 45, [6]]];
 
 let map = [[5, 35, [], 0],[4, 19, [0,3,5]],[10, 45, [0,6]],[15, 32, [0,7]],[25, 11, [10]],[13, 18, [4]],
              [37, 48, [8,9]],[25, 30, [4,8]],[48, 30, [9]],[33, 37, [10]],[44, 10, [], 1]];
@@ -2535,8 +2836,6 @@ let secondScreenBG = new Box(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, PURPLE);
 let secondScreen = new Screen(1, "secondScreen", [playGameBtn]);
 secondScreen.addBackgroundObject(secondScreenBG);
 secondScreen.addUIObject(playGameBtn);
-// secondScreen.addUIObject(levelGameBtn);
-
 
 // -=-=-=-=-=-=-=-=- GAME SCREEN -=-=-=-=-=-=-=-=-
 
@@ -2570,41 +2869,34 @@ testGame.setMap(map);
 
 // -=-=-=-=-=-=-=-=- EDITING SETUP -=-=-=-=-=-=-=-=-
 
-editObj = new Editing();
+editObj = new Editing(testGame);
 playScreen.addUpdateObject(editObj);
 
 // -=-=-=-=-=-=-=-=- IMAGE SETUP -=-=-=-=-=-=-=-=-
 
-let myCarImage = new MyImage("car.png", 150, 50, 100, 100);
 
-let myRoadImage = new MyImage("normalRoad.png", 300, 250, 100, 100);
+// let myRoadImage = new MyImage("normalRoad.png", 300, 250, 100, 100);
 
 screenList = [firstScreen, secondScreen, playScreen];
 
 // -=-=-=-=-=-=-=-=- PLAYER SETUP -=-=-=-=-=-=-=-=-
 
-playerObj = new Player();
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 //                                                      MAIN PROGRAM LOOP
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-
-let fromTestCord = [150, 300];
-let toTestCord = [404.5, 376];
-
-// for (i=0;i<5;i++){
-//     drawRoadLine(fromTestCord, toTestCord, 30, 50); 
-// }
-// console.log("success");
-
 playScreen.addUpdateObject(testGame);
+
+// let tempCarImage = drawPngOnCurrentScreen("car.png", 250, 250, 100, 100, 0, "foreground");
+
+// console.log(firstScreen.drawForegroundObjectList);
+// console.log(firstScreen.drawBackgroundObjectList);
+// console.log(firstScreen.drawUIObjectList);
 
 function mainLoop(){
     mouseClickPos = mouseClickPosInCanvas();
     mouseHoverPos = mouseHoverPosInCanvas();
-
-    // drawRoadLine(fromTestCord, toTestCord, 30, 50); 
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -2621,10 +2913,18 @@ function mainLoop(){
         
         }
     }
+    // if (aDown){
+    //     console.log("down");
+    // }
 
-    // testGame.update();
+    // myCarImage.draw();
+
     colorFinalPath();
     click = false;
+    aDown = false;
+    dDown = false;
+    wDown = false;
+    sDown = false;
     requestAnimationFrame(mainLoop);
 }
 
